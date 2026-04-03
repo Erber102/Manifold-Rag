@@ -1,0 +1,9 @@
+torch
+geoopt
+transformers
+beir
+sentence-transformers
+numpy 
+scipy 
+matplotlib 
+tqdm
