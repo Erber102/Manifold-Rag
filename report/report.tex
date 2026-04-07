@@ -1,0 +1,246 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+
+\title{\textbf{Geometry-Aware RAG: Enhancing Retrieval through Mixed-Curvature Product Manifolds and Topological Features} \\ \vspace{0.3cm} \large CS288 Checkpoint 2 Report}
+
+\author{
+  Boning Shao
+  \and
+  Tianyi Huang
+  \and
+  Yicheng Peng
+}
+
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\section{Introduction}
+% ============================================================
+
+Retrieval-Augmented Generation (RAG) systems rely on vector similarity search to ground Large Language Model outputs in relevant documents. Conventional dense retrieval systems embed both queries and documents into Euclidean space and rank candidates by cosine similarity. While effective for many tasks, Euclidean embeddings have a fundamental limitation: they cannot faithfully represent data with inherent non-Euclidean structure---such as strict hierarchies, cyclical relationships, or multi-scale semantic organization---without incurring significant distortion \citep{nickel2017poincare, sala2018representation}.
+
+We propose \textbf{Manifold-RAG}, a retrieval framework that projects document chunks and queries into a \emph{mixed-curvature product manifold} comprising Euclidean ($\mathbb{R}^{d_1}$), hyperbolic ($\mathbb{B}^{d_2}$, Poincar\'e ball), and spherical ($\mathbb{S}^{d_3}$) components. Each component is designed to capture a different type of semantic structure: hyperbolic space for tree-like ontologies, spherical space for mutually exclusive categories, and Euclidean space for flat semantic similarity.
+
+In this checkpoint, we present: (1) a synthetic distortion experiment motivating the use of hyperbolic geometry, (2) baseline results with BM25 and Sentence-BERT, (3) preliminary results for Euclidean, Poincar\'e, and product manifold projection heads, and (4) analysis of current limitations with planned improvements.
+
+% ============================================================
+\section{Related Work}
+% ============================================================
+
+\paragraph{Hyperbolic Embeddings.}
+\citet{nickel2017poincare} introduced Poincar\'e embeddings for learning hierarchical representations, demonstrating that hyperbolic space can embed tree structures with significantly lower distortion than Euclidean space, especially in low dimensions. \citet{tifrea2019poincare} extended this to word embeddings with Poincar\'e GloVe. Theoretically, \citet{sarkar2011low} showed that any tree with $n$ nodes can be embedded into 2-dimensional hyperbolic space with arbitrarily low distortion---a result impossible in Euclidean space.
+
+\paragraph{Product Manifolds.}
+\citet{gu2019learning} proposed learning embeddings in product manifolds combining spaces of different curvatures, showing that mixed-curvature spaces better capture heterogeneous data structures than any single-curvature space.
+
+\paragraph{Dense Retrieval.}
+Modern dense retrieval systems \citep{karpukhin2020dense, izacard2022unsupervised} encode queries and documents with pretrained transformers and retrieve by nearest-neighbor search. Recent work has focused on improved training objectives \citep{xiong2021approximate}, multi-vector representations \citep{khattab2020colbert}, and reranking strategies.
+
+% ============================================================
+\section{Datasets}
+% ============================================================
+
+We evaluate on two datasets from the BEIR benchmark \citep{thakur2021beir} with contrasting structural properties:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{SciFact} (5,183 documents, 300 queries): Scientific claim verification. Documents are drawn from biomedical literature with inherent hierarchical organization (taxonomy of diseases, treatments, biological processes).
+    \item \textbf{FiQA} (57,638 documents, 648 queries): Financial question answering from online forums. Semantic structure is relatively flat---questions and answers relate through topical similarity rather than hierarchical containment.
+\end{itemize}
+
+We hypothesize that hyperbolic components will provide greater benefit on SciFact (hierarchical) than FiQA (flat), and plan to verify this with $\delta$-hyperbolicity analysis in the final report.
+
+% ============================================================
+\section{Motivation: Distortion Experiment}
+% ============================================================
+
+To validate the geometric intuition behind our approach, we conduct a synthetic experiment. We construct a balanced tree (depth=6, branching factor=3, 729 leaf nodes) and compute exact tree distances between all leaf pairs. We then learn optimal embeddings in both Euclidean and Poincar\'e (hyperbolic) spaces by minimizing mean squared error between embedding distances and true tree distances, and measure worst-case distortion (ratio of maximum to minimum distance ratio across all pairs).
+
+\begin{table}[h]
+\centering
+\caption{Distortion of tree embeddings in Euclidean vs.\ Poincar\'e space across dimensions. Lower is better. Poincar\'e achieves consistently lower distortion, with the advantage most pronounced at low dimensions.}
+\label{tab:distortion}
+\begin{tabular}{@{}cccc@{}}
+\toprule
+Dimension & Euclidean & Poincar\'e & Ratio (E/P) \\
+\midrule
+2  & 12740.72 & 2827.97 & 4.5$\times$ \\
+4  & 241.59   & 23.87   & 10.1$\times$ \\
+8  & 89.86    & 9.90    & 9.1$\times$ \\
+16 & 25.84    & 7.75    & 3.3$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key findings: (1) Poincar\'e embeddings achieve lower distortion at every dimension tested. (2) The advantage is most dramatic at low dimensions (10$\times$ at $d$=4), consistent with the theoretical result that hyperbolic space volume grows exponentially with radius, naturally matching tree branching. (3) The gap narrows at higher dimensions, suggesting that the practical value of hyperbolic geometry lies primarily in \emph{dimension efficiency}---achieving the same representational fidelity with fewer parameters.
+
+% ============================================================
+\section{Method}
+% ============================================================
+
+\subsection{Architecture}
+
+We use a frozen Sentence-BERT encoder (\texttt{all-MiniLM-L6-v2}, 384-dimensional output) as our backbone. On top of this, we train lightweight projection heads that map the 384-dimensional embeddings into different geometric spaces:
+
+\paragraph{Euclidean Head.} A linear projection $\mathbb{R}^{384} \to \mathbb{R}^{64}$ followed by $L_2$ normalization. Retrieval uses cosine distance.
+
+\paragraph{Poincar\'e Head.} A linear projection $\mathbb{R}^{384} \to \mathbb{R}^{64}$, scaled by a learnable parameter $s$ (initialized to 0.1) to prevent boundary collapse, followed by the exponential map $\exp_{\mathbf{0}}: T_{\mathbf{0}}\mathbb{B}^{64} \to \mathbb{B}^{64}$ mapping tangent vectors at the origin into the Poincar\'e ball. Retrieval uses the Poincar\'e distance:
+\begin{equation}
+d_{\mathbb{B}}(\mathbf{x}, \mathbf{y}) = \text{arcosh}\left(1 + 2\frac{\|\mathbf{x} - \mathbf{y}\|^2}{(1-\|\mathbf{x}\|^2)(1-\|\mathbf{y}\|^2)}\right)
+\end{equation}
+
+\paragraph{Product Manifold Head.} Three parallel linear projections map to $\mathbb{R}^{32}$ (Euclidean), $\mathbb{B}^{16}$ (Poincar\'e), and $\mathbb{S}^{16}$ (spherical) components respectively. The combined distance is:
+\begin{equation}
+d_{\text{prod}}(\mathbf{x}, \mathbf{y}) = \alpha^2 \cdot d_{\mathbb{R}}(\mathbf{x}_E, \mathbf{y}_E)^2 + \beta^2 \cdot d_{\mathbb{B}}(\mathbf{x}_H, \mathbf{y}_H)^2 + \gamma^2 \cdot d_{\mathbb{S}}(\mathbf{x}_S, \mathbf{y}_S)^2
+\end{equation}
+where $\alpha, \beta, \gamma$ are learnable weights and $d_{\mathbb{S}}$ is the geodesic (arc-cosine) distance on the unit sphere.
+
+\subsection{Training}
+
+All projection heads are trained with a triplet margin loss. For each query, positive documents are drawn from relevance judgments, and 7 in-batch random negatives are sampled per positive. We use Riemannian Adam \citep{becigneul2019riemannian} (via the \texttt{geoopt} library) which performs standard Adam updates for Euclidean parameters and Riemannian gradient updates for parameters on the Poincar\'e ball. Training runs for 20 epochs with learning rate $10^{-3}$.
+
+% ============================================================
+\section{Evaluation Metrics}
+% ============================================================
+
+We report three standard retrieval metrics:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{NDCG@10} (Normalized Discounted Cumulative Gain): Measures ranking quality, rewarding relevant documents placed higher in the ranked list.
+    \item \textbf{Recall@10}: Fraction of relevant documents retrieved in the top 10 results.
+    \item \textbf{Recall@100}: Fraction of relevant documents retrieved in the top 100 results, measuring the broader retrieval coverage.
+\end{itemize}
+
+% ============================================================
+\section{Results}
+% ============================================================
+
+\begin{table}[h]
+\centering
+\caption{Retrieval performance on SciFact and FiQA. Best results per dataset in \textbf{bold}.}
+\label{tab:results}
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Dataset & Method & NDCG@10 & Recall@10 & Recall@100 \\
+\midrule
+\multirow{5}{*}{SciFact}
+& BM25               & 0.5597 & 0.6862 & 0.7929 \\
+& SBERT (384d)        & 0.6451 & 0.7833 & 0.9250 \\
+& Euclidean (64d)     & \textbf{0.9530} & \textbf{1.0000} & \textbf{1.0000} \\
+& Poincar\'e (64d)    & 0.4179 & 0.5296 & 0.8050 \\
+& Product (64d)       & 0.8129 & 0.9767 & \textbf{1.0000} \\
+\midrule
+\multirow{5}{*}{FiQA}
+& BM25               & 0.1591 & 0.2037 & 0.3590 \\
+& SBERT (384d)        & 0.3687 & 0.4413 & 0.7061 \\
+& Euclidean (64d)     & \textbf{0.5420} & \textbf{0.6668} & \textbf{0.9528} \\
+& Poincar\'e (64d)    & 0.1550 & 0.2154 & 0.5020 \\
+& Product (64d)       & 0.3367 & 0.4342 & 0.8576 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Analysis}
+
+\paragraph{Task-specific projection is highly effective.} The most striking result is that the trained Euclidean projection head (64 dimensions) dramatically outperforms the general-purpose SBERT encoder (384 dimensions) on both datasets---NDCG@10 improves from 0.645 to 0.953 on SciFact and from 0.369 to 0.542 on FiQA. This demonstrates that low-dimensional task-specific projections can be far more effective than high-dimensional general embeddings, and establishes a strong baseline for our geometric methods to compete against.
+
+\paragraph{Poincar\'e underperforms at 64 dimensions.} The pure Poincar\'e head significantly underperforms the Euclidean head on both datasets. We attribute this to several factors: (1) at 64 dimensions, Euclidean space has sufficient capacity to represent the data, diminishing the geometric advantage of hyperbolic space (consistent with our distortion experiment showing the gap narrows at higher dimensions); (2) Riemannian optimization is more challenging than Euclidean optimization---20 training epochs may be insufficient for convergence; (3) numerical instability near the Poincar\'e ball boundary can degrade gradient quality.
+
+\paragraph{Product Manifold shows promise in recall.} On SciFact, the product manifold achieves Recall@10 of 0.977 and Recall@100 of 1.000, approaching the Euclidean head. The gap is primarily in ranking quality (NDCG), suggesting the combined distance function retrieves the right documents but does not order them optimally. This indicates that the learnable distance weights ($\alpha, \beta, \gamma$) may need more careful training or alternative parameterization.
+
+% ============================================================
+\section{Planned Improvements for Final Report}
+% ============================================================
+
+Based on our preliminary findings, we plan the following improvements:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Low-dimensional regime.} Our distortion experiment predicts that hyperbolic advantages emerge at low dimensions. We will compare all methods at dimensions 8, 16, 32, 64, and 128 to test whether Poincar\'e or product manifold retrieval outperforms Euclidean when dimension budgets are tight.
+    
+    \item \textbf{Training improvements.} Increase training epochs (20 $\to$ 100+), use separate learning rates for Euclidean and Riemannian parameters, and implement hard negative mining to improve training signal quality.
+    
+    \item \textbf{$\delta$-Hyperbolicity analysis.} Compute the Gromov $\delta$-hyperbolicity of each dataset's embedding space to quantify its ``tree-likeness.'' We hypothesize that the benefit of hyperbolic components correlates with lower $\delta$ (more hierarchical structure).
+    
+    \item \textbf{Ablation studies.} (a) Dimension allocation: vary the split among (E, H, S) components at fixed total dimension. (b) Component removal: compare E+H+S vs.\ E-only vs.\ H-only vs.\ S-only.
+    
+    \item \textbf{Hyperbolic norm as topological signal.} In Poincar\'e space, a point's norm encodes its depth in the hierarchy. We plan to use this property for retrieval pre-filtering---matching query abstraction level to document specificity---a capability unavailable in Euclidean space regardless of dimensionality.
+\end{enumerate}
+
+% ============================================================
+\section{Conclusion}
+% ============================================================
+
+We have established strong baselines (BM25 and SBERT), implemented three projection head variants (Euclidean, Poincar\'e, and product manifold), and obtained preliminary results on two structurally contrasting datasets. While the Euclidean projection head currently leads, our synthetic distortion experiment provides theoretical motivation for hyperbolic representations at lower dimensions, and the product manifold's strong recall suggests that geometric decomposition has potential with improved training. The final report will focus on the low-dimensional regime, ablation studies, and topological signal exploitation where we expect geometric methods to demonstrate their distinctive advantages.
+
+% ============================================================
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+
+\bibitem[Becigneul \& Ganea(2019)]{becigneul2019riemannian}
+Becigneul, G. \& Ganea, O.-E. (2019).
+Riemannian Adaptive Optimization Methods.
+\textit{ICLR 2019}.
+
+\bibitem[Gu et al.(2019)]{gu2019learning}
+Gu, A., Sala, F., Gunel, B., \& R\'e, C. (2019).
+Learning Mixed-Curvature Representations in Product Spaces.
+\textit{ICLR 2019}.
+
+\bibitem[Izacard et al.(2022)]{izacard2022unsupervised}
+Izacard, G., Caron, M., Hosseini, L., Riedel, S., Bojanowski, P., Joulin, A., \& Grave, E. (2022).
+Unsupervised Dense Information Retrieval with Contrastive Learning.
+\textit{TMLR 2022}.
+
+\bibitem[Karpukhin et al.(2020)]{karpukhin2020dense}
+Karpukhin, V., O\u{g}uz, B., Min, S., Lewis, P., Wu, L., Edunov, S., Chen, D., \& Yih, W.-T. (2020).
+Dense Passage Retrieval for Open-Domain Question Answering.
+\textit{EMNLP 2020}.
+
+\bibitem[Khattab \& Zaharia(2020)]{khattab2020colbert}
+Khattab, O. \& Zaharia, M. (2020).
+ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT.
+\textit{SIGIR 2020}.
+
+\bibitem[Nickel \& Kiela(2017)]{nickel2017poincare}
+Nickel, M. \& Kiela, D. (2017).
+Poincar\'e Embeddings for Learning Hierarchical Representations.
+\textit{NeurIPS 2017}.
+
+\bibitem[Sala et al.(2018)]{sala2018representation}
+Sala, F., De Sa, C., Gu, A., \& R\'e, C. (2018).
+Representation Tradeoffs for Hyperbolic Embeddings.
+\textit{ICML 2018}.
+
+\bibitem[Sarkar(2011)]{sarkar2011low}
+Sarkar, R. (2011).
+Low Distortion Delaunay Embedding of Trees in Hyperbolic Plane.
+\textit{Graph Drawing 2011}.
+
+\bibitem[Thakur et al.(2021)]{thakur2021beir}
+Thakur, N., Reimers, N., R\"uckl\'e, A., Srivastava, A., \& Gurevych, I. (2021).
+BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models.
+\textit{NeurIPS 2021 Datasets and Benchmarks}.
+
+\bibitem[Tifrea et al.(2019)]{tifrea2019poincare}
+Tifrea, A., B\'ecigneul, G., \& Ganea, O.-E. (2019).
+Poincar\'e GloVe: Hyperbolic Word Embeddings.
+\textit{ICLR 2019}.
+
+\bibitem[Xiong et al.(2021)]{xiong2021approximate}
+Xiong, L., Xiong, C., Li, Y., Tang, K.-F., Liu, J., Bennett, P.N., Ahmed, J., \& Overwijk, A. (2021).
+Approximate Nearest Neighbor Negative Contrastive Learning for Dense Text Retrieval.
+\textit{ICLR 2021}.
+
+\end{thebibliography}
+
+\end{document}

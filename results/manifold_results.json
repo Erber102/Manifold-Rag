@@ -1,0 +1,38 @@
+{
+  "scifact_euclidean_64": {
+    "NDCG@10": 0.95298,
+    "Recall@10": 1.0,
+    "Recall@100": 1.0,
+    "MAP@10": 0.93546
+  },
+  "scifact_poincare_64": {
+    "NDCG@10": 0.41791,
+    "Recall@10": 0.52956,
+    "Recall@100": 0.805,
+    "MAP@10": 0.37727
+  },
+  "scifact_product_64": {
+    "NDCG@10": 0.81294,
+    "Recall@10": 0.97667,
+    "Recall@100": 1.0,
+    "MAP@10": 0.75483
+  },
+  "fiqa_euclidean_64": {
+    "NDCG@10": 0.54195,
+    "Recall@10": 0.66676,
+    "Recall@100": 0.95281,
+    "MAP@10": 0.44486
+  },
+  "fiqa_poincare_64": {
+    "NDCG@10": 0.15498,
+    "Recall@10": 0.21537,
+    "Recall@100": 0.50199,
+    "MAP@10": 0.10451
+  },
+  "fiqa_product_64": {
+    "NDCG@10": 0.33668,
+    "Recall@10": 0.4342,
+    "Recall@100": 0.85762,
+    "MAP@10": 0.25058
+  }
+}
