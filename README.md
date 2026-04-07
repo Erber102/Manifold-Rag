@@ -4,6 +4,10 @@ Retrieval-Augmented Generation (RAG) fundamentally relies on vector similarity s
 # Dataset
 https://drive.google.com/drive/folders/1Z8zRD4gKy6gkChgl3_MT4VqD-uLpi0i8?usp=sharing
 
+# Report
+We use a pdf report compiled from tex file, link is below
+https://www.overleaf.com/1269669347tpsgkkrftqpq#5a6f9b
+
 # Contribution
 Boning Shao — RAG baseline implementation and evaluation
 
