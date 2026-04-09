@@ -76,33 +76,15 @@ Training on non-Euclidean manifolds requires Riemannian gradient methods. \citet
 \section{Baseline Setup}
 % ============================================================
 
-\subsection{Datasets}
+\paragraph{Datasets.} We use two BEIR \citep{thakur2021beir} datasets with contrasting structure: \textbf{SciFact} (5{,}183 docs; 809 train / 300 test queries; hierarchical biomedical) and \textbf{FiQA} (57{,}638 docs; 5{,}500 train / 648 test queries; flat financial QA). Train/test queries are disjoint; the corpus is shared.
 
-We use two BEIR \citep{thakur2021beir} datasets with contrasting structure:
-\textbf{SciFact} (5{,}183 docs, 300 test queries, 809 train queries)---scientific claim verification with hierarchical biomedical organization; and
-\textbf{FiQA} (57{,}638 docs, 648 test queries, 5{,}500 train queries)---financial QA with relatively flat topical structure. Train and test query sets are disjoint; the corpus is shared across splits (standard BEIR setup).
+\paragraph{Baselines.} We include two baselines covering the required categories. (i)~\textbf{BM25} (Okapi, \texttt{rank\_bm25}) is a lexical \emph{heuristic} baseline that requires no training. (ii)~Frozen \textbf{SBERT} (\texttt{all-MiniLM-L6-v2}, $384d$, cosine) is an \emph{existing open-model} dense-retrieval baseline used zero-shot.
 
-\subsection{Implementation Details}
+\paragraph{Proposed methods.} On top of frozen SBERT we train three $64d$ projection heads: \textbf{Euclidean} ($\mathbb{R}^{64}$, $L_2$-normalised); \textbf{Poincar\'e} ($\mathbb{B}^{64}$, $c{=}1$, via $\exp_0$ with learnable tangent scale init $0.1$); \textbf{Product} ($\mathbb{R}^{32}{\times}\mathbb{B}^{16}{\times}\mathbb{S}^{16}$ with combined squared distance $\alpha^2 d_{\mathbb{R}}^2{+}\beta^2 d_{\mathbb{B}}^2{+}\gamma^2 d_{\mathbb{S}}^2$, learnable $\alpha,\beta,\gamma$ init $1$). All heads are trained with triplet loss (margin $0.5$, $7$ random negatives), Riemannian Adam ($lr{=}10^{-3}$, batch $64$), $20$ epochs on one GPU. All five methods retrieve top-$100$ candidates at test time.
 
-We evaluate five retrieval methods, all retrieving top-100 candidates:
+\paragraph{Evaluation.}\label{sec:eval-setup} Each method encodes the corpus once and retrieves top-$100$ per test query under its own distance. We use BEIR's \texttt{EvaluateRetrieval} and report \textbf{NDCG@10}, \textbf{R@10}, \textbf{R@100}. Positives come from \texttt{split="train"} qrels and evaluation from the disjoint \texttt{split="test"}, with a query-id disjointness assertion before training.
 
-\textbf{BM25}: Lexical baseline using \texttt{rank\_bm25} (Okapi BM25). Documents tokenized by whitespace.
-
-\textbf{SBERT (384d)}: Frozen \texttt{all-MiniLM-L6-v2} encoder with cosine similarity retrieval. No task-specific training.
-
-\textbf{Euclidean Head (64d)}: Frozen SBERT + trained linear projection $\mathbb{R}^{384} \to \mathbb{R}^{64}$ with $L_2$ normalization. Cosine distance for retrieval.
-
-\textbf{Poincar\'e Head (64d)}: Frozen SBERT + trained linear projection into Poincar\'e ball $\mathbb{B}^{64}$ (curvature $c{=}1$) via exponential map at the origin, with a learnable tangent-space scale (init $0.1$) to avoid boundary collapse. Poincar\'e distance for retrieval.
-
-\textbf{Product Head (64d)}: Frozen SBERT + three parallel linear projections to $\mathbb{R}^{32} \times \mathbb{B}^{16} \times \mathbb{S}^{16}$. The combined squared distance is $\alpha^2 d_{\mathbb{R}}^2 + \beta^2 d_{\mathbb{B}}^2 + \gamma^2 d_{\mathbb{S}}^2$ with learnable positive weights $\alpha,\beta,\gamma$ (all initialised to $1$).
-
-All projection heads are trained with triplet margin loss (margin $0.5$, $7$ uniformly-sampled random in-corpus negatives per positive), Riemannian Adam ($lr{=}10^{-3}$, batch size $64$), for $20$ epochs on a single NVIDIA GPU. Positive (query, doc) pairs are taken from the BEIR \emph{train} qrels; evaluation uses the disjoint \emph{test} qrels (see \S\ref{sec:eval-setup}).
-
-\subsection{Evaluation Setup}\label{sec:eval-setup}
-
-Each method encodes the shared corpus once and retrieves the top $100$ documents per test query under its own distance. We use the BEIR \texttt{EvaluateRetrieval} pipeline and report \textbf{NDCG@10} (ranking quality), \textbf{Recall@10}, and \textbf{Recall@100} (coverage). Importantly, for the trained projection heads we now source positives from \texttt{split="train"} and evaluate on \texttt{split="test"}, explicitly verifying that train and test query ids are disjoint before training begins.
-
-\subsection{Results}
+\subsection{Results and Discussion}
 
 \begin{table}[h]
 \centering
@@ -130,13 +112,11 @@ Dataset & Method & NDCG@10 & R@10 & R@100 \\
 \end{tabular}
 \end{table}
 
-\paragraph{Note on an earlier leaky pipeline.} Our first set of runs inadvertently trained the projection heads on the BEIR \emph{test} qrels, because the data loader only requested \texttt{split="test"} and the training loop then mined positive pairs from those same qrels. This produced implausibly high scores (e.g.\ SciFact Euclidean-$64d$ at NDCG@10 $=0.953$, R@10 $=1.000$, well above published BEIR SOTA). We fixed the pipeline to load both splits, build positives exclusively from \texttt{split="train"} qrels, and assert disjointness of train/test query ids before training. All numbers in Table~2 come from the fixed pipeline; BM25 and frozen-SBERT rows are unchanged because they involve no training. We also observed noticeable run-to-run variance across two independent clean runs (e.g.\ SciFact Euclidean NDCG@10 varied by $\sim\!0.06$), attributable to random negative sampling and head initialisation; the final report will average over multiple seeds.
+\paragraph{Note on an earlier leaky pipeline.} Our initial runs inadvertently trained on BEIR \texttt{split="test"} qrels, producing implausibly high scores (e.g.\ SciFact Euclidean-$64d$ NDCG@10 $=0.953$). The fixed pipeline loads both splits, mines positives only from \texttt{train}, and asserts query-id disjointness; all Table~2 numbers come from this clean pipeline. Run-to-run variance is non-trivial ($\sim\!0.06$ NDCG@10 on SciFact Euclidean); the final report will average over seeds.
 
-\paragraph{Observations.} \emph{(1)~SciFact.} The trained $64d$ Euclidean head modestly beats frozen $384d$ SBERT ($0.663$ vs.\ $0.645$ NDCG@10, $0.825$ vs.\ $0.783$ R@10), confirming that a task-specific low-dimensional projection can still pay off on a dataset with dense qrels and moderate supervision ($809$ train queries). The Product Head lags SBERT here ($0.556$), and the pure Poincar\'e head collapses ($0.201$)---we read this less as a failure of hyperbolic geometry \emph{per~se} than as an optimisation failure: $20$ epochs with an un-tuned Riemannian learning rate and a small init scale ($0.1$) is likely trapping points near the origin, where hyperbolic and Euclidean geometries are locally equivalent. \emph{(2)~FiQA.} All three trained $64d$ heads \emph{underperform} frozen SBERT ($0.369$), indicating a capacity bottleneck: $5{,}500$ triplets are not enough to fit a useful $384{\to}64$ projection from scratch. Crucially, within the trained heads we observe \textbf{Product~$>$~Euclidean~$>$~Poincar\'e} ($0.271 > 0.243 > 0.184$ NDCG@10; the same ordering holds for R@10 and R@100). The Product Head's consistent lead across all three metrics on a dataset where pure Euclidean projection is the natural comparison is the first clean signal that mixed-curvature geometry adds representational capacity rather than just noise---a signal that was hidden in our leaky runs.
+\paragraph{Observations.} On \emph{SciFact}, the trained $64d$ Euclidean head modestly beats frozen $384d$ SBERT ($0.663$ vs.\ $0.645$ NDCG@10), while the pure Poincar\'e head collapses ($0.201$)---most likely an optimisation failure (small init scale $0.1$ + un-tuned Riemannian $lr$ trap points near the origin) rather than a geometric one. On \emph{FiQA}, all trained heads underperform frozen SBERT ($0.369$), indicating a capacity bottleneck at $5{,}500$ triplets; but within the trained heads the ordering is \textbf{Product~$>$~Euclidean~$>$~Poincar\'e} consistently across NDCG@10, R@10, R@100---the first clean signal that mixed-curvature geometry adds representational capacity, hidden in our leaky runs.
 
-\paragraph{Takeaways and implications for the method.} The clean results sharpen our research questions: (i)~at $d{=}64$ on SciFact, Euclidean is already strong, so the hyperbolic story must be tested at $d \leq 32$ where the Intro distortion result predicts the largest gap; (ii)~the Poincar\'e collapse on SciFact is most plausibly an optimisation bug rather than a geometric one, which we will attack by warm-starting from a trained Euclidean head, increasing epochs, and sweeping $lr$ and the initial tangent-space scale; (iii)~on low-supervision datasets like FiQA, even the Euclidean head cannot match frozen SBERT, which argues for joint fine-tuning of SBERT rather than training a projection head in isolation; (iv)~the product manifold is already the best \emph{trained} option on FiQA, supporting the core Manifold-RAG thesis.
-
-\paragraph{Planned experiments for the final report.} (i)~Low-dimensional sweep $d \in \{8,16,32,64\}$, where the Intro distortion experiment predicts the hyperbolic advantage should emerge. (ii)~Longer training ($\geq 50$ epochs) and a Riemannian learning-rate sweep for the Poincar\'e head. (iii)~Joint fine-tuning of SBERT with the projection head (requires GPU credits). (iv)~Compute $\delta$-hyperbolicity of each dataset's embedding graph to quantify tree-likeness. (v)~Implement hyperbolic-norm-based topological filtering and ablate its contribution. (vi)~Ablation over dimension allocation across the three product-manifold factors.
+\paragraph{Planned experiments.} (i)~Low-$d$ sweep $d\in\{8,16,32\}$ where the Intro distortion result predicts the largest hyperbolic gap; (ii)~longer training and $lr$/init-scale sweeps for the Poincar\'e head, warm-started from the Euclidean head; (iii)~joint SBERT fine-tuning (needs GPU credits); (iv)~$\delta$-hyperbolicity of each dataset; (v)~hyperbolic-norm-based topological filtering and its ablation.
 
 % ============================================================
 \section{Application to VESSL AI Credits}

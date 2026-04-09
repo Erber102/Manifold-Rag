@@ -1,5 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1775763672.85932 "report.tex" "report.pdf" "report" 1775763673.64611 0
+["pdflatex"] 1775764496.55368 "/Users/apple/Desktop/notes/ucb-visiting_year2-sem2/cs288/manifold-rag/report/report.tex" "report.pdf" "report" 1775764497.42154 0
+  "/Users/apple/Desktop/notes/ucb-visiting_year2-sem2/cs288/manifold-rag/report/report.tex" 1775764438.4488 16239 4ddc1563b018b010e3024463ddfdebf2 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/jknappen/ec/tcrm1095.tfm" 1136768653 1536 02c06700a42be0f5a28664c7273f82e7 ""
@@ -96,9 +97,9 @@
   "/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1758701376 5467155 19efa205003f9ecad95fbbaa6ff24da1 ""
   "/usr/local/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1758701350 3345739 09b17d2806b4f1b61338e155dbdd30be ""
   "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
-  "report.aux" 1775763673.55205 3790 2770775156960634b7022876c670c376 "pdflatex"
-  "report.out" 1775763673.55295 1034 f706b9422f6b6913b081e9550f9b2acf "pdflatex"
-  "report.tex" 1775763666.99012 17270 595abdb032e2554c6426a3ed3d57cbdf ""
+  "report.aux" 1775764497.32214 3712 3b430427534e157fde89e63b779b0f4c "pdflatex"
+  "report.out" 1775764497.32286 708 f2a08260c74a8de2b69f84ad30b47028 "pdflatex"
+  "report.tex" 1775764438.4488 16239 4ddc1563b018b010e3024463ddfdebf2 ""
   (generated)
   "report.aux"
   "report.log"

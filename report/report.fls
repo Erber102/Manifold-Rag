@@ -2,7 +2,7 @@ PWD /Users/apple/Desktop/notes/ucb-visiting_year2-sem2/cs288/manifold-rag/report
 INPUT /usr/local/texlive/2025/texmf.cnf
 INPUT /usr/local/texlive/2025/texmf-dist/web2c/texmf.cnf
 INPUT /usr/local/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt
-INPUT report.tex
+INPUT /Users/apple/Desktop/notes/ucb-visiting_year2-sem2/cs288/manifold-rag/report/report.tex
 OUTPUT report.log
 INPUT /usr/local/texlive/2025/texmf-dist/tex/latex/base/article.cls
 INPUT /usr/local/texlive/2025/texmf-dist/tex/latex/base/article.cls
