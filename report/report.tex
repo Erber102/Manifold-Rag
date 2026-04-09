@@ -23,13 +23,17 @@
 \begin{document}
 \maketitle
 
+\begin{abstract}
+Retrieval-Augmented Generation (RAG) grounds large language model outputs in retrieved evidence, but nearly all dense retrievers embed text exclusively in Euclidean space and therefore distort data whose latent structure is hierarchical, cyclical, or multi-scale. We propose \textbf{Manifold-RAG}, a geometry-aware dense retrieval framework that projects query and document embeddings into a mixed-curvature \emph{product manifold} $\mathbb{R}^{d_1} \times \mathbb{B}^{d_2} \times \mathbb{S}^{d_3}$ combining Euclidean, hyperbolic Poincar\'e-ball, and spherical components, and that plans to further exploit manifold-specific topological features---for example, hyperbolic embedding norms as a proxy for concept specificity---to filter candidates before ranking. This checkpoint reports our baseline pipeline on two BEIR datasets (SciFact and FiQA), compares lexical, frozen-encoder, and trained projection-head retrievers under Euclidean, Poincar\'e, and product-manifold geometries, and discusses an important methodological issue (train/test qrel leakage in our initial runs) that motivates the re-runs planned for the final report.
+\end{abstract}
+
 % ============================================================
 \section{Introduction}
 % ============================================================
 
 Retrieval-Augmented Generation (RAG) systems ground LLM outputs by retrieving relevant documents via vector similarity search. Conventional dense retrieval embeds queries and documents into Euclidean space and ranks by cosine similarity. While effective, Euclidean embeddings cannot faithfully represent data with non-Euclidean structure---hierarchies, cycles, or multi-scale organization---without significant distortion \citep{nickel2017poincare, sala2018representation}.
 
-We propose \textbf{Manifold-RAG}, which projects embeddings into a mixed-curvature product manifold: $\mathbb{R}^{d_1} \times \mathbb{B}^{d_2} \times \mathbb{S}^{d_3}$ (Euclidean, hyperbolic Poincar\'e ball, and spherical components). Each captures different structure: hyperbolic for tree-like ontologies, spherical for mutually exclusive categories, Euclidean for flat similarity.
+We propose \textbf{Manifold-RAG}, which projects embeddings into a mixed-curvature product manifold: $\mathbb{R}^{d_1} \times \mathbb{B}^{d_2} \times \mathbb{S}^{d_3}$ (Euclidean, hyperbolic Poincar\'e ball, and spherical components). Each captures different structure: hyperbolic for tree-like ontologies, spherical for mutually exclusive categories, Euclidean for flat similarity. Beyond distance-based ranking, we also plan to incorporate \emph{manifold-specific topological features}---notably hyperbolic embedding norms, which in a Poincar\'e ball encode the depth of a concept in its implicit hierarchy---to pre-filter candidates by level of abstraction before the final ranking step.
 
 \paragraph{Motivation.} We validate this intuition with a synthetic experiment: embedding a balanced tree (depth=6, branching=3, 729 leaves) into Euclidean vs.\ Poincar\'e space by optimizing embedding distances to match true tree distances. Results show Poincar\'e achieves dramatically lower distortion, especially at low dimensions (10$\times$ lower at $d$=4), confirming that hyperbolic geometry is better suited for hierarchical data.
 
@@ -57,13 +61,13 @@ The gap narrows at higher dimensions, suggesting hyperbolic geometry's practical
 % ============================================================
 
 \paragraph{Hyperbolic Embeddings.}
-\citet{nickel2017poincare} introduced Poincar\'e embeddings for hierarchical representations, showing hyperbolic space embeds trees with far lower distortion than Euclidean space in low dimensions. \citet{sarkar2011low} proved any tree can be embedded into 2D hyperbolic space with arbitrarily low distortion---impossible in Euclidean space. \citet{tifrea2019poincare} extended this to word embeddings with Poincar\'e GloVe.
+\citet{nickel2017poincare} introduced Poincar\'e embeddings for hierarchical representations, showing hyperbolic space embeds trees with far lower distortion than Euclidean space in low dimensions. \citet{sarkar2011low} proved any tree can be embedded into 2D hyperbolic space with arbitrarily low distortion---impossible in Euclidean space. \citet{tifrea2019poincare} extended this to word embeddings with Poincar\'e GloVe. \citet{ganea2018hyperbolic} generalized neural network primitives (linear layers, activations, attention) to the Poincar\'e ball via M\"obius operations, enabling end-to-end hyperbolic models.
 
 \paragraph{Product Manifolds.}
-\citet{gu2019learning} proposed learning in product spaces combining Euclidean, hyperbolic, and spherical factors, demonstrating that mixed-curvature spaces better capture heterogeneous data than any single geometry.
+\citet{gu2019learning} proposed learning in product spaces combining Euclidean, hyperbolic, and spherical factors, demonstrating that mixed-curvature spaces better capture heterogeneous data than any single geometry. Our Product Head follows the same decomposition but applies it to retrieval rather than graph embedding.
 
 \paragraph{Dense Retrieval.}
-Modern systems \citep{karpukhin2020dense, izacard2022unsupervised} encode queries and documents with pretrained transformers for nearest-neighbor retrieval. Improvements include approximate negative contrastive learning \citep{xiong2021approximate} and multi-vector late interaction \citep{khattab2020colbert}. However, all operate exclusively in Euclidean space.
+Modern systems \citep{karpukhin2020dense, izacard2022unsupervised} encode queries and documents with pretrained transformers for nearest-neighbor retrieval. Improvements include approximate negative contrastive learning \citep{xiong2021approximate} and multi-vector late interaction \citep{khattab2020colbert}. However, all operate exclusively in Euclidean space; to our knowledge no prior work evaluates mixed-curvature product manifolds on BEIR-style retrieval, nor uses manifold-native topological features (e.g., hyperbolic norms) as a candidate filter.
 
 \paragraph{Riemannian Optimization.}
 Training on non-Euclidean manifolds requires Riemannian gradient methods. \citet{becigneul2019riemannian} introduced Riemannian Adam, which computes gradients in tangent space and retracts updates onto the manifold via exponential maps. We use this via the \texttt{geoopt} library.
@@ -75,8 +79,8 @@ Training on non-Euclidean manifolds requires Riemannian gradient methods. \citet
 \subsection{Datasets}
 
 We use two BEIR \citep{thakur2021beir} datasets with contrasting structure:
-\textbf{SciFact} (5,183 docs, 300 queries)---scientific claim verification with hierarchical biomedical organization; and
-\textbf{FiQA} (57,638 docs, 648 queries)---financial QA with relatively flat topical structure.
+\textbf{SciFact} (5{,}183 docs, 300 test queries, 809 train queries)---scientific claim verification with hierarchical biomedical organization; and
+\textbf{FiQA} (57{,}638 docs, 648 test queries, 5{,}500 train queries)---financial QA with relatively flat topical structure. Train and test query sets are disjoint; the corpus is shared across splits (standard BEIR setup).
 
 \subsection{Implementation Details}
 
@@ -88,20 +92,22 @@ We evaluate five retrieval methods, all retrieving top-100 candidates:
 
 \textbf{Euclidean Head (64d)}: Frozen SBERT + trained linear projection $\mathbb{R}^{384} \to \mathbb{R}^{64}$ with $L_2$ normalization. Cosine distance for retrieval.
 
-\textbf{Poincar\'e Head (64d)}: Frozen SBERT + trained linear projection into Poincar\'e ball $\mathbb{B}^{64}$ via exponential map, with learnable scale (init 0.1). Poincar\'e distance for retrieval.
+\textbf{Poincar\'e Head (64d)}: Frozen SBERT + trained linear projection into Poincar\'e ball $\mathbb{B}^{64}$ (curvature $c{=}1$) via exponential map at the origin, with a learnable tangent-space scale (init $0.1$) to avoid boundary collapse. Poincar\'e distance for retrieval.
 
-\textbf{Product Head (64d)}: Frozen SBERT + three parallel projections to $\mathbb{R}^{32} \times \mathbb{B}^{16} \times \mathbb{S}^{16}$ with learnable distance weights $\alpha, \beta, \gamma$.
+\textbf{Product Head (64d)}: Frozen SBERT + three parallel linear projections to $\mathbb{R}^{32} \times \mathbb{B}^{16} \times \mathbb{S}^{16}$. The combined squared distance is $\alpha^2 d_{\mathbb{R}}^2 + \beta^2 d_{\mathbb{B}}^2 + \gamma^2 d_{\mathbb{S}}^2$ with learnable positive weights $\alpha,\beta,\gamma$ (all initialised to $1$).
 
-All projection heads trained with triplet margin loss (margin=0.5, 7 random negatives per positive), Riemannian Adam ($lr$=$10^{-3}$), 20 epochs.
+All projection heads are trained with triplet margin loss (margin $0.5$, $7$ uniformly-sampled random in-corpus negatives per positive), Riemannian Adam ($lr{=}10^{-3}$, batch size $64$), for $20$ epochs on a single NVIDIA GPU. Positive (query, doc) pairs are taken from the BEIR \emph{train} qrels; evaluation uses the disjoint \emph{test} qrels (see \S\ref{sec:eval-setup}).
 
-\subsection{Metrics} NDCG@10 (ranking quality), Recall@10, and Recall@100 (retrieval coverage).
+\subsection{Evaluation Setup}\label{sec:eval-setup}
+
+Each method encodes the shared corpus once and retrieves the top $100$ documents per test query under its own distance. We use the BEIR \texttt{EvaluateRetrieval} pipeline and report \textbf{NDCG@10} (ranking quality), \textbf{Recall@10}, and \textbf{Recall@100} (coverage). Importantly, for the trained projection heads we now source positives from \texttt{split="train"} and evaluate on \texttt{split="test"}, explicitly verifying that train and test query ids are disjoint before training begins.
 
 \subsection{Results}
 
 \begin{table}[h]
 \centering
 \small
-\caption{Retrieval results. Best per dataset in \textbf{bold}.}
+\caption{Retrieval results with a clean train/test split. All trained heads are fit on BEIR \texttt{split="train"} qrels and evaluated on the disjoint \texttt{split="test"}. Best per dataset in \textbf{bold}; best \emph{trained} head \underline{underlined}.}
 \vspace{0.2cm}
 \begin{tabular}{@{}llccc@{}}
 \toprule
@@ -110,37 +116,43 @@ Dataset & Method & NDCG@10 & R@10 & R@100 \\
 \multirow{5}{*}{SciFact}
 & BM25               & 0.560 & 0.686 & 0.793 \\
 & SBERT (384d)        & 0.645 & 0.783 & 0.925 \\
-& Euclidean (64d)     & \textbf{0.953} & \textbf{1.000} & \textbf{1.000} \\
-& Poincar\'e (64d)    & 0.418 & 0.530 & 0.805 \\
-& Product (64d)       & 0.813 & 0.977 & \textbf{1.000} \\
+& Euclidean (64d)     & \textbf{\underline{0.663}} & \textbf{\underline{0.825}} & \textbf{\underline{0.928}} \\
+& Poincar\'e (64d)    & 0.201 & 0.307 & 0.575 \\
+& Product (64d)       & 0.556 & 0.732 & 0.862 \\
 \midrule
 \multirow{5}{*}{FiQA}
 & BM25               & 0.159 & 0.204 & 0.359 \\
-& SBERT (384d)        & 0.369 & 0.441 & 0.706 \\
-& Euclidean (64d)     & \textbf{0.542} & \textbf{0.667} & \textbf{0.953} \\
-& Poincar\'e (64d)    & 0.155 & 0.215 & 0.502 \\
-& Product (64d)       & 0.337 & 0.434 & 0.858 \\
+& SBERT (384d)        & \textbf{0.369} & \textbf{0.441} & \textbf{0.706} \\
+& Euclidean (64d)     & 0.243 & 0.311 & 0.572 \\
+& Poincar\'e (64d)    & 0.184 & 0.247 & 0.496 \\
+& Product (64d)       & \underline{0.271} & \underline{0.345} & \underline{0.596} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Key observations.} (1) Trained 64d Euclidean projections dramatically outperform 384d SBERT, demonstrating that task-specific low-dimensional projection is highly effective. (2) Pure Poincar\'e underperforms---consistent with our distortion experiment showing the hyperbolic advantage diminishes at higher dimensions (64d is sufficient for Euclidean). Additionally, 20 epochs may be insufficient for Riemannian optimization convergence. (3) Product manifold achieves near-perfect Recall on SciFact (0.977) but lags in ranking (NDCG), suggesting the distance weighting needs improvement.
+\paragraph{Note on an earlier leaky pipeline.} Our first set of runs inadvertently trained the projection heads on the BEIR \emph{test} qrels, because the data loader only requested \texttt{split="test"} and the training loop then mined positive pairs from those same qrels. This produced implausibly high scores (e.g.\ SciFact Euclidean-$64d$ at NDCG@10 $=0.953$, R@10 $=1.000$, well above published BEIR SOTA). We fixed the pipeline to load both splits, build positives exclusively from \texttt{split="train"} qrels, and assert disjointness of train/test query ids before training. All numbers in Table~2 come from the fixed pipeline; BM25 and frozen-SBERT rows are unchanged because they involve no training. We also observed noticeable run-to-run variance across two independent clean runs (e.g.\ SciFact Euclidean NDCG@10 varied by $\sim\!0.06$), attributable to random negative sampling and head initialisation; the final report will average over multiple seeds.
 
-For the final report, we plan to: test the low-dimensional regime (dim 8--32) where hyperbolic advantages should emerge; increase training epochs and tune Riemannian learning rates; compute $\delta$-hyperbolicity to quantify dataset structure; and run ablation studies on dimension allocation across geometric components.
+\paragraph{Observations.} \emph{(1)~SciFact.} The trained $64d$ Euclidean head modestly beats frozen $384d$ SBERT ($0.663$ vs.\ $0.645$ NDCG@10, $0.825$ vs.\ $0.783$ R@10), confirming that a task-specific low-dimensional projection can still pay off on a dataset with dense qrels and moderate supervision ($809$ train queries). The Product Head lags SBERT here ($0.556$), and the pure Poincar\'e head collapses ($0.201$)---we read this less as a failure of hyperbolic geometry \emph{per~se} than as an optimisation failure: $20$ epochs with an un-tuned Riemannian learning rate and a small init scale ($0.1$) is likely trapping points near the origin, where hyperbolic and Euclidean geometries are locally equivalent. \emph{(2)~FiQA.} All three trained $64d$ heads \emph{underperform} frozen SBERT ($0.369$), indicating a capacity bottleneck: $5{,}500$ triplets are not enough to fit a useful $384{\to}64$ projection from scratch. Crucially, within the trained heads we observe \textbf{Product~$>$~Euclidean~$>$~Poincar\'e} ($0.271 > 0.243 > 0.184$ NDCG@10; the same ordering holds for R@10 and R@100). The Product Head's consistent lead across all three metrics on a dataset where pure Euclidean projection is the natural comparison is the first clean signal that mixed-curvature geometry adds representational capacity rather than just noise---a signal that was hidden in our leaky runs.
+
+\paragraph{Takeaways and implications for the method.} The clean results sharpen our research questions: (i)~at $d{=}64$ on SciFact, Euclidean is already strong, so the hyperbolic story must be tested at $d \leq 32$ where the Intro distortion result predicts the largest gap; (ii)~the Poincar\'e collapse on SciFact is most plausibly an optimisation bug rather than a geometric one, which we will attack by warm-starting from a trained Euclidean head, increasing epochs, and sweeping $lr$ and the initial tangent-space scale; (iii)~on low-supervision datasets like FiQA, even the Euclidean head cannot match frozen SBERT, which argues for joint fine-tuning of SBERT rather than training a projection head in isolation; (iv)~the product manifold is already the best \emph{trained} option on FiQA, supporting the core Manifold-RAG thesis.
+
+\paragraph{Planned experiments for the final report.} (i)~Low-dimensional sweep $d \in \{8,16,32,64\}$, where the Intro distortion experiment predicts the hyperbolic advantage should emerge. (ii)~Longer training ($\geq 50$ epochs) and a Riemannian learning-rate sweep for the Poincar\'e head. (iii)~Joint fine-tuning of SBERT with the projection head (requires GPU credits). (iv)~Compute $\delta$-hyperbolicity of each dataset's embedding graph to quantify tree-likeness. (v)~Implement hyperbolic-norm-based topological filtering and ablate its contribution. (vi)~Ablation over dimension allocation across the three product-manifold factors.
 
 % ============================================================
 \section{Application to VESSL AI Credits}
 % ============================================================
 
-We request GPU hours to scale experiments in three ways: (1)~fine-tune the full SBERT encoder jointly with projection heads (currently frozen due to compute limits), which should significantly improve Poincar\'e and product manifold performance; (2)~evaluate on larger datasets such as DBPedia-Entity (4.6M documents); (3)~run ablation studies across dimensions (8--256) and curvature settings.
+We request roughly $150$--$250$ A100-GPU-hours to scale our experiments along four axes. (1)~\emph{End-to-end manifold fine-tuning}: jointly fine-tune the full SBERT encoder with the projection heads (currently frozen for compute reasons), which we expect to disproportionately benefit the Poincar\'e and product heads because their geometry is currently constrained by Euclidean pretrained features. (2)~\emph{Larger, more structured benchmarks}: evaluate on NQ, HotpotQA, and DBPedia-Entity ($4.6$M documents); the latter two have explicit entity/hierarchy structure where we expect hyperbolic components to pay off. (3)~\emph{Systematic sweeps}: dimension $d \in \{8,16,32,64,128,256\}$, curvature $c$, and product-manifold factor allocations, enabled by the clean train/test pipeline described in \S3. (4)~\emph{Topological filtering}: implement and ablate the hyperbolic-norm-based candidate filter promised in the introduction, which requires additional encoding passes over the larger corpora above. Without GPU support, items~(1), (2), and the larger sweeps in~(3) are infeasible on our current hardware.
 
 % ============================================================
 
-\bibliographystyle{plainnat}
 \begin{thebibliography}{99}
 
 \bibitem[Becigneul \& Ganea(2019)]{becigneul2019riemannian}
 Becigneul, G. \& Ganea, O.-E. (2019). Riemannian Adaptive Optimization Methods. \textit{ICLR}.
+
+\bibitem[Ganea et al.(2018)]{ganea2018hyperbolic}
+Ganea, O.-E., B\'ecigneul, G., \& Hofmann, T. (2018). Hyperbolic Neural Networks. \textit{NeurIPS}.
 
 \bibitem[Gu et al.(2019)]{gu2019learning}
 Gu, A., Sala, F., Gunel, B., \& R\'e, C. (2019). Learning Mixed-Curvature Representations in Product Spaces. \textit{ICLR}.

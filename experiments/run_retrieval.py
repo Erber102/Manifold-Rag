@@ -75,23 +75,36 @@ class ProductHead(torch.nn.Module):
 
 def train_head(head, corpus_emb, queries_emb, qrels, query_ids, doc_ids,
                epochs=20, lr=1e-3, n_negatives=7, batch_size=64):
-    """Train projection head with triplet loss"""
+    """Train projection head with triplet loss.
+
+    IMPORTANT: `queries_emb`/`query_ids`/`qrels` here MUST come from the
+    training split (disjoint from the evaluation split). `corpus_emb`/`doc_ids`
+    may be the shared corpus since BEIR uses one corpus across splits.
+    """
     head = head.to(device)
-    
+
     # Use RiemannianAdam if model has manifold params, else regular Adam
     params = list(head.parameters())
     optimizer = geoopt.optim.RiemannianAdam(params, lr=lr)
-    
+
     # Build training pairs: (query_idx, pos_doc_idx)
     doc_id_to_idx = {did: i for i, did in enumerate(doc_ids)}
+    query_id_to_idx = {qid: i for i, qid in enumerate(query_ids)}
     train_pairs = []
     for qid in qrels:
-        if qid not in query_ids:
+        if qid not in query_id_to_idx:
             continue
-        qi = query_ids.index(qid)
+        qi = query_id_to_idx[qid]
         for did, rel in qrels[qid].items():
             if rel > 0 and did in doc_id_to_idx:
                 train_pairs.append((qi, doc_id_to_idx[did]))
+    if len(train_pairs) == 0:
+        raise RuntimeError(
+            "No training pairs built — check that the train-split qrels were "
+            "passed in and that their query ids are present in `query_ids`."
+        )
+    print(f"  Built {len(train_pairs)} (query, positive doc) training pairs "
+          f"from {len(qrels)} train queries.")
     
     corpus_t = torch.tensor(corpus_emb, dtype=torch.float32, device=device)
     queries_t = torch.tensor(queries_emb, dtype=torch.float32, device=device)
@@ -226,38 +239,61 @@ def main():
         print(f"\n{'='*60}")
         print(f"Dataset: {dataset}")
         print(f"{'='*60}")
-        
+
         data_path = os.path.join("data", dataset)
-        corpus, queries, qrels = GenericDataLoader(data_path).load(split="test")
-        
+
+        # --- Load BEIR train split (for head training) and test split
+        # (for evaluation). Corpus is shared across splits in BEIR, so we
+        # only encode it once. Query sets and qrels are disjoint.
+        corpus, train_queries, train_qrels = GenericDataLoader(data_path).load(split="train")
+        _, test_queries, test_qrels = GenericDataLoader(data_path).load(split="test")
+
+        # Sanity-check that train and test query ids do not overlap.
+        overlap = set(train_queries.keys()) & set(test_queries.keys())
+        if overlap:
+            raise RuntimeError(
+                f"Train/test query id overlap detected ({len(overlap)} ids) — "
+                f"this would reintroduce leakage. Example: {next(iter(overlap))}"
+            )
+
         doc_ids = list(corpus.keys())
-        query_ids = list(queries.keys())
+        train_query_ids = list(train_queries.keys())
+        test_query_ids = list(test_queries.keys())
         doc_texts = [(corpus[d].get("title","") + " " + corpus[d]["text"]).strip() for d in doc_ids]
-        query_texts = [queries[q] for q in query_ids]
-        
-        print("Encoding with SBERT...")
+        train_query_texts = [train_queries[q] for q in train_query_ids]
+        test_query_texts = [test_queries[q] for q in test_query_ids]
+
+        print(f"  Corpus: {len(doc_ids)} docs | "
+              f"Train queries: {len(train_query_ids)} | "
+              f"Test queries: {len(test_query_ids)}")
+
+        print("Encoding corpus with SBERT...")
         corpus_emb = sbert.encode(doc_texts, batch_size=128, show_progress_bar=True)
-        query_emb = sbert.encode(query_texts, batch_size=128, show_progress_bar=True)
-        
+        print("Encoding train queries with SBERT...")
+        train_query_emb = sbert.encode(train_query_texts, batch_size=128, show_progress_bar=True)
+        print("Encoding test queries with SBERT...")
+        test_query_emb = sbert.encode(test_query_texts, batch_size=128, show_progress_bar=True)
+
         for method_name, head_fn in methods.items():
             print(f"\n--- {method_name} ---")
             head = head_fn()
-            
-            print("Training projection head...")
-            head = train_head(head, corpus_emb, query_emb, qrels, query_ids, doc_ids,
-                            epochs=20, lr=1e-3)
-            
+
+            print("Training projection head on BEIR train split...")
+            head = train_head(head, corpus_emb, train_query_emb,
+                              train_qrels, train_query_ids, doc_ids,
+                              epochs=20, lr=1e-3)
+
             print("Encoding with projection head...")
             corpus_proj = encode_with_head(head, corpus_emb)
-            query_proj = encode_with_head(head, query_emb)
-            
-            print("Retrieving...")
-            results = retrieve_with_head(head, corpus_proj, query_proj, 
-                                        doc_ids, query_ids)
-            
+            query_proj = encode_with_head(head, test_query_emb)
+
+            print("Retrieving (evaluating on test split)...")
+            results = retrieve_with_head(head, corpus_proj, query_proj,
+                                        doc_ids, test_query_ids)
+
             evaluator = EvaluateRetrieval()
             ndcg, map_score, recall, precision = evaluator.evaluate(
-                qrels, results, [1, 5, 10, 100])
+                test_qrels, results, [1, 5, 10, 100])
             
             key = f"{dataset}_{method_name}"
             all_results[key] = {
