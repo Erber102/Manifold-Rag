@@ -1,25 +1,30 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass{article}
+\usepackage{iclr2026_conference,times}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
 \usepackage[utf8]{inputenc}
-\usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{hyperref}
-\usepackage{natbib}
+\usepackage{url}
 \usepackage{enumitem}
 \usepackage{multirow}
 
-\title{\textbf{Geometry-Aware RAG: Enhancing Retrieval through Mixed-Curvature Product Manifolds and Topological Features} \\ \vspace{0.3cm} \large CS288 Checkpoint 2 Report}
+\title{Geometry-Aware RAG: Enhancing Retrieval through\\ Mixed-Curvature Product Manifolds and Topological Features}
 
-\author{
-  Boning Shao
-  \and
-  Tianyi Huang
-  \and
-  Yicheng Peng
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the \iclrfinalcopy macro remains commented out below.
+% Non-anonymous submissions will be rejected without review.
+
+\author{Boning Shao, Tianyi Huang \& Yicheng Peng
 }
 
-\date{April 2026}
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
 
+\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
 \begin{document}
 \maketitle
 
@@ -33,7 +38,7 @@ Retrieval-Augmented Generation (RAG) grounds large language model outputs in ret
 
 Retrieval-Augmented Generation (RAG) systems ground LLM outputs by retrieving relevant documents via vector similarity search. Conventional dense retrieval embeds queries and documents into Euclidean space and ranks by cosine similarity. While effective, Euclidean embeddings cannot faithfully represent data with non-Euclidean structure---hierarchies, cycles, or multi-scale organization---without significant distortion \citep{nickel2017poincare, sala2018representation}.
 
-We propose \textbf{Manifold-RAG}, which projects embeddings into a mixed-curvature product manifold: $\mathbb{R}^{d_1} \times \mathbb{B}^{d_2} \times \mathbb{S}^{d_3}$ (Euclidean, hyperbolic Poincar\'e ball, and spherical components). Each captures different structure: hyperbolic for tree-like ontologies, spherical for mutually exclusive categories, Euclidean for flat similarity. Beyond distance-based ranking, we also plan to incorporate \emph{manifold-specific topological features}---notably hyperbolic embedding norms, which in a Poincar\'e ball encode the depth of a concept in its implicit hierarchy---to pre-filter candidates by level of abstraction before the final ranking step.
+We propose Manifold-RAG, which projects embeddings into a mixed-curvature product manifold: $\mathbb{R}^{d_1} \times \mathbb{B}^{d_2} \times \mathbb{S}^{d_3}$ (Euclidean, hyperbolic Poincar\'e ball, and spherical components). Each captures different structure: hyperbolic for tree-like ontologies, spherical for mutually exclusive categories, Euclidean for flat similarity. Beyond distance-based ranking, we also plan to incorporate \emph{manifold-specific topological features}---notably hyperbolic embedding norms, which in a Poincar\'e ball encode the depth of a concept in its implicit hierarchy---to pre-filter candidates by level of abstraction before the final ranking step.
 
 \paragraph{Motivation.} We validate this intuition with a synthetic experiment: embedding a balanced tree (depth=6, branching=3, 729 leaves) into Euclidean vs.\ Poincar\'e space by optimizing embedding distances to match true tree distances. Results show Poincar\'e achieves dramatically lower distortion, especially at low dimensions (10$\times$ lower at $d$=4), confirming that hyperbolic geometry is better suited for hierarchical data.
 
