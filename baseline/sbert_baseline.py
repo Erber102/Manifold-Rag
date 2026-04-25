@@ -40,7 +40,7 @@ def sbert_retrieve(corpus, queries, model, top_k=100, batch_size=128):
 model = SentenceTransformer("all-MiniLM-L6-v2")
 print(f"Model embedding dim: {model.get_sentence_embedding_dimension()}")
 
-datasets = ["scifact", "fiqa"]
+datasets = ["wiki"]
 results_all = {}
 
 for dataset in datasets:
@@ -68,7 +68,13 @@ for dataset in datasets:
         print(f"  {metric}: {value:.4f}")
 
 os.makedirs("results", exist_ok=True)
-with open("results/sbert_results.json", "w") as f:
+save_path = "results/sbert_results.json"
+if os.path.exists(save_path):
+    with open(save_path, "r") as f:
+        existing = json.load(f)
+    existing.update(results_all)
+    results_all = existing
+with open(save_path, "w") as f:
     json.dump(results_all, f, indent=2)
 
 print("\nSaved to results/sbert_results.json")

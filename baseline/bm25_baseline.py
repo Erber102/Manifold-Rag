@@ -24,7 +24,7 @@ def bm25_retrieve(corpus, queries, top_k=100):
     
     return results
 
-datasets = ["scifact", "fiqa"]
+datasets = ["wiki"]
 results_all = {}
 
 for dataset in datasets:
@@ -52,7 +52,13 @@ for dataset in datasets:
         print(f"  {metric}: {value:.4f}")
 
 os.makedirs("results", exist_ok=True)
-with open("results/bm25_results.json", "w") as f:
+save_path = "results/bm25_results.json"
+if os.path.exists(save_path):
+    with open(save_path, "r") as f:
+        existing = json.load(f)
+    existing.update(results_all)
+    results_all = existing
+with open(save_path, "w") as f:
     json.dump(results_all, f, indent=2)
 
 print("\nSaved to results/bm25_results.json")
