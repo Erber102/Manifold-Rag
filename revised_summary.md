@@ -87,14 +87,29 @@ data/wiki/
 
 ---
 
-## 四、实验结论（两 seed 验证，std < 0.007）
+## 四、实验结论（两 seed 验证，std < 0.014）
 
-| Method | Overall NDCG@10 | disambiguation NDCG@10 | navigation NDCG@10 | generalize NDCG@10 |
-|--------|:---------:|:----------------------:|:------------------:|:------------------:|
-| BM25 | — | — | — | — |
-| SBERT raw | — | — | — | — |
-| Euclidean-64 | 0.5777 ± 0.003 | 0.452 ± 0.001 | 0.580 ± 0.002 | 0.611 ± 0.006 |
-| Poincaré-64 | 0.4921 ± 0.001 | 0.284 ± 0.003 | 0.488 ± 0.002 | 0.551 ± 0.002 |
-| **Product-64** | 0.5417 ± 0.001 | **0.543 ± 0.007** | 0.470 ± 0.003 | 0.565 ± 0.001 |
+### SciFact / FiQA（标准检索，无层级结构）
 
-**核心发现**：Product 流形在 `hierarchy_disambiguation` 上显著优于 Euclidean（+9.1 NDCG@10），信噪比 13:1，结论稳健。BM25 / SBERT raw 的数值在运行 `python experiments/run_baselines.py` 后填入。
+| Method | SciFact NDCG@10 | FiQA NDCG@10 |
+|--------|:-:|:-:|
+| BM25 | 0.560 | 0.159 |
+| SBERT raw | 0.645 | 0.369 |
+| Euclidean-64 | **0.672** ± 0.013 | 0.238 ± 0.002 |
+| Poincaré-64 | 0.449 ± 0.006 | 0.183 ± 0.001 |
+| Product-64 | 0.577 ± 0.005 | **0.263** ± 0.003 |
+
+### Wiki（层级检索，主要评测）
+
+| Method | Overall NDCG@10 | disambiguation | navigation | generalize |
+|--------|:-:|:-:|:-:|:-:|
+| BM25 | 0.079 | 0.449 | 0.000 | 0.004 |
+| SBERT raw | 0.099 | 0.548 | 0.004 | 0.008 |
+| Euclidean-64 | 0.578 ± 0.003 | 0.452 ± 0.001 | 0.580 ± 0.002 | 0.611 ± 0.006 |
+| Poincaré-64 | 0.492 ± 0.001 | 0.284 ± 0.003 | 0.488 ± 0.002 | 0.551 ± 0.002 |
+| **Product-64** | **0.542** ± 0.001 | **0.543** ± 0.007 | 0.470 ± 0.003 | 0.565 ± 0.001 |
+
+**核心发现**：
+- Product 流形在 `hierarchy_disambiguation` 上显著优于 Euclidean（+9.1 NDCG@10，信噪比 13:1），结论稳健
+- BM25 / SBERT raw 在 generalize / navigation 上接近 0，说明这两类任务需要学习到的语义表示，词汇匹配不够用
+- Poincaré 在非层级数据集（SciFact、FiQA）上明显落后，印证双曲几何对平坦数据不适合
