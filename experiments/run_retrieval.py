@@ -465,7 +465,7 @@ def main():
     sbert = SentenceTransformer("all-MiniLM-L6-v2")
     input_dim = sbert.get_sentence_embedding_dimension()
 
-    datasets = ["wiki"]
+    datasets = ["wiki", "scifact", "fiqa"]
     methods = {
         "euclidean_64": lambda: EuclideanHead(input_dim, 64),
         "poincare_64": lambda: PoincareHead(input_dim, 64),
@@ -503,10 +503,6 @@ def main():
             t = query_types.get(qid, "unknown")
             type_counts[t] = type_counts.get(t, 0) + 1
         print(f"  Test QA breakdown by type: {type_counts}")
-        print(f"  Level target distribution: "
-              f"cat={( level_targets < 0.3).sum()}, "
-              f"art={(( level_targets >= 0.3) & (level_targets < 0.6)).sum()}, "
-              f"sec={(level_targets >= 0.6).sum()}")
 
         print("Encoding corpus with SBERT...")
         corpus_emb = sbert.encode(doc_texts, batch_size=256, show_progress_bar=True)

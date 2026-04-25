@@ -75,7 +75,7 @@ def eval_with_types(results: dict, qrels: dict, query_ids: list,
 
 
 def main():
-    datasets = ["wiki"]
+    datasets = ["wiki", "scifact", "fiqa"]
     base_data_path = "data"
     all_results: dict = {}
 

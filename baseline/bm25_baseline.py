@@ -24,7 +24,7 @@ def bm25_retrieve(corpus, queries, top_k=100):
     
     return results
 
-datasets = ["wiki"]
+datasets = ["wiki", "scifact", "fiqa"]
 results_all = {}
 
 for dataset in datasets:

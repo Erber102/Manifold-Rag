@@ -40,7 +40,7 @@ def sbert_retrieve(corpus, queries, model, top_k=100, batch_size=128):
 model = SentenceTransformer("all-MiniLM-L6-v2")
 print(f"Model embedding dim: {model.get_sentence_embedding_dimension()}")
 
-datasets = ["wiki"]
+datasets = ["wiki", "scifact", "fiqa"]
 results_all = {}
 
 for dataset in datasets:
