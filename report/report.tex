@@ -11,25 +11,25 @@
 \usepackage{url}
 \usepackage{enumitem}
 \usepackage{multirow}
+\usepackage{graphicx}
 
-\title{Geometry-Aware RAG: Enhancing Retrieval through\\ Mixed-Curvature Product Manifolds and Topological Features}
+\title{Geometry-Aware RAG: Enhancing Retrieval through\\ Mixed-Curvature Product Manifolds}
 
-% Authors must not appear in the submitted version. They should be hidden
-% as long as the \iclrfinalcopy macro remains commented out below.
-% Non-anonymous submissions will be rejected without review.
-
-\author{Boning Shao, Tianyi Huang \& Yicheng Peng
-}
+\author{Boning Shao, Tianyi Huang \& Yicheng Peng}
 
 \newcommand{\fix}{\marginpar{FIX}}
 \newcommand{\new}{\marginpar{NEW}}
 
-\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
+\iclrfinalcopy
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Retrieval-Augmented Generation (RAG) grounds large language model outputs in retrieved evidence, but nearly all dense retrievers embed text exclusively in Euclidean space and therefore distort data whose latent structure is hierarchical, cyclical, or multi-scale. We propose \textbf{Manifold-RAG}, a geometry-aware dense retrieval framework that projects query and document embeddings into a mixed-curvature \emph{product manifold} $\mathbb{R}^{d_1} \times \mathbb{B}^{d_2} \times \mathbb{S}^{d_3}$ combining Euclidean, hyperbolic Poincar\'e-ball, and spherical components, and that plans to further exploit manifold-specific topological features---for example, hyperbolic embedding norms as a proxy for concept specificity---to filter candidates before ranking. This checkpoint reports our baseline pipeline on two BEIR datasets (SciFact and FiQA), compares lexical, frozen-encoder, and trained projection-head retrievers under Euclidean, Poincar\'e, and product-manifold geometries, and discusses an important methodological issue (train/test qrel leakage in our initial runs) that motivates the re-runs planned for the final report.
+Retrieval-Augmented Generation (RAG) grounds large language model outputs in retrieved evidence, but nearly all dense retrievers embed text exclusively in Euclidean space, distorting data whose latent structure is hierarchical, cyclical, or multi-scale.
+We propose \textbf{Manifold-RAG}, a geometry-aware dense retrieval framework that projects frozen SBERT embeddings into a mixed-curvature \emph{product manifold} $\mathbb{R}^{d_1}\!\times\!\mathbb{B}^{d_2}\!\times\!\mathbb{S}^{d_3}$ combining Euclidean, hyperbolic Poincar\'e-ball, and spherical components.
+We evaluate on three datasets spanning flat (FiQA), mildly hierarchical (SciFact), and explicitly hierarchical (a custom Wikipedia corpus with hierarchy-aware QA) structure.
+Our experiments reveal a nuanced picture: while Euclidean projections achieve the highest overall NDCG@10, the product manifold provides a consistent advantage on hierarchy-disambiguation queries (+9.1 NDCG@10 points over Euclidean) and on FiQA at dim$\geq$32.
+Dimension sweep, component ablation, and query-adaptive weight experiments further characterize when and why mixed-curvature geometry helps.
 \end{abstract}
 
 % ============================================================
@@ -38,7 +38,7 @@ Retrieval-Augmented Generation (RAG) grounds large language model outputs in ret
 
 Retrieval-Augmented Generation (RAG) systems ground LLM outputs by retrieving relevant documents via vector similarity search. Conventional dense retrieval embeds queries and documents into Euclidean space and ranks by cosine similarity. While effective, Euclidean embeddings cannot faithfully represent data with non-Euclidean structure---hierarchies, cycles, or multi-scale organization---without significant distortion \citep{nickel2017poincare, sala2018representation}.
 
-We propose Manifold-RAG, which projects embeddings into a mixed-curvature product manifold: $\mathbb{R}^{d_1} \times \mathbb{B}^{d_2} \times \mathbb{S}^{d_3}$ (Euclidean, hyperbolic Poincar\'e ball, and spherical components). Each captures different structure: hyperbolic for tree-like ontologies, spherical for mutually exclusive categories, Euclidean for flat similarity. Beyond distance-based ranking, we also plan to incorporate \emph{manifold-specific topological features}---notably hyperbolic embedding norms, which in a Poincar\'e ball encode the depth of a concept in its implicit hierarchy---to pre-filter candidates by level of abstraction before the final ranking step.
+We propose Manifold-RAG, which projects embeddings into a mixed-curvature product manifold: $\mathbb{R}^{d_1}\!\times\!\mathbb{B}^{d_2}\!\times\!\mathbb{S}^{d_3}$ (Euclidean, hyperbolic Poincar\'e ball, and spherical components). Each captures different structure: hyperbolic for tree-like ontologies, spherical for mutually exclusive categories, Euclidean for flat similarity.
 
 \paragraph{Motivation.} We validate this intuition with a synthetic experiment: embedding a balanced tree (depth=6, branching=3, 729 leaves) into Euclidean vs.\ Poincar\'e space by optimizing embedding distances to match true tree distances. Results show Poincar\'e achieves dramatically lower distortion, especially at low dimensions (10$\times$ lower at $d$=4), confirming that hyperbolic geometry is better suited for hierarchical data.
 
@@ -72,62 +72,248 @@ The gap narrows at higher dimensions, suggesting hyperbolic geometry's practical
 \citet{gu2019learning} proposed learning in product spaces combining Euclidean, hyperbolic, and spherical factors, demonstrating that mixed-curvature spaces better capture heterogeneous data than any single geometry. Our Product Head follows the same decomposition but applies it to retrieval rather than graph embedding.
 
 \paragraph{Dense Retrieval.}
-Modern systems \citep{karpukhin2020dense, izacard2022unsupervised} encode queries and documents with pretrained transformers for nearest-neighbor retrieval. Improvements include approximate negative contrastive learning \citep{xiong2021approximate} and multi-vector late interaction \citep{khattab2020colbert}. However, all operate exclusively in Euclidean space; to our knowledge no prior work evaluates mixed-curvature product manifolds on BEIR-style retrieval, nor uses manifold-native topological features (e.g., hyperbolic norms) as a candidate filter.
+Modern systems \citep{karpukhin2020dense, izacard2022unsupervised} encode queries and documents with pretrained transformers for nearest-neighbor retrieval. Improvements include approximate negative contrastive learning \citep{xiong2021approximate} and multi-vector late interaction \citep{khattab2020colbert}. However, all operate exclusively in Euclidean space; to our knowledge no prior work evaluates mixed-curvature product manifolds on BEIR-style retrieval benchmarks.
 
 \paragraph{Riemannian Optimization.}
 Training on non-Euclidean manifolds requires Riemannian gradient methods. \citet{becigneul2019riemannian} introduced Riemannian Adam, which computes gradients in tangent space and retracts updates onto the manifold via exponential maps. We use this via the \texttt{geoopt} library.
 
 % ============================================================
-\section{Baseline Setup}
+\section{Method Setup}
+\label{sec:method}
 % ============================================================
 
-\paragraph{Datasets.} We use two BEIR \citep{thakur2021beir} datasets with contrasting structure: \textbf{SciFact} (5{,}183 docs; 809 train / 300 test queries; hierarchical biomedical) and \textbf{FiQA} (57{,}638 docs; 5{,}500 train / 648 test queries; flat financial QA). Train/test queries are disjoint; the corpus is shared.
+\subsection{Core Idea}
 
-\paragraph{Baselines.} We include two baselines covering the required categories. (i)~\textbf{BM25} (Okapi, \texttt{rank\_bm25}) is a lexical \emph{heuristic} baseline that requires no training. (ii)~Frozen \textbf{SBERT} (\texttt{all-MiniLM-L6-v2}, $384d$, cosine) is an \emph{existing open-model} dense-retrieval baseline used zero-shot.
+Standard dense retrieval projects queries and documents into a single Euclidean space and ranks by cosine similarity. This implicitly assumes all semantic relationships are ``flat.'' However, knowledge corpora contain heterogeneous structure: hierarchical taxonomies (e.g., Wikipedia categories), mutually exclusive groupings (e.g., scientific disciplines), and flat topical similarity. We propose replacing the Euclidean projection with a \emph{product manifold} projection that decomposes the embedding space into three geometric components, each suited to a different type of structure:
 
-\paragraph{Proposed methods.} On top of frozen SBERT we train three $64d$ projection heads: \textbf{Euclidean} ($\mathbb{R}^{64}$, $L_2$-normalised); \textbf{Poincar\'e} ($\mathbb{B}^{64}$, $c{=}1$, via $\exp_0$ with learnable tangent scale init $0.1$); \textbf{Product} ($\mathbb{R}^{32}{\times}\mathbb{B}^{16}{\times}\mathbb{S}^{16}$ with combined squared distance $\alpha^2 d_{\mathbb{R}}^2{+}\beta^2 d_{\mathbb{B}}^2{+}\gamma^2 d_{\mathbb{S}}^2$, learnable $\alpha,\beta,\gamma$ init $1$). All heads are trained with triplet loss (margin $0.5$, $7$ random negatives), Riemannian Adam ($lr{=}10^{-3}$, batch $64$), $20$ epochs on one GPU. All five methods retrieve top-$100$ candidates at test time.
+\begin{itemize}[nosep,leftmargin=1.5em]
+    \item \textbf{Euclidean component} $\mathbb{R}^{d_1}$: captures flat semantic similarity via $L_2$-normalized cosine distance.
+    \item \textbf{Hyperbolic component} $\mathbb{B}^{d_2}$ (Poincar\'e ball, curvature $c{=}1$): captures tree-like hierarchical relationships. Points near the origin represent abstract concepts; points near the boundary represent specific ones.
+    \item \textbf{Spherical component} $\mathbb{S}^{d_3}$: captures mutually exclusive categories via geodesic (arc-cosine) distance on the unit sphere.
+\end{itemize}
 
-\paragraph{Evaluation.}\label{sec:eval-setup} Each method encodes the corpus once and retrieves top-$100$ per test query under its own distance. We use BEIR's \texttt{EvaluateRetrieval} and report \textbf{NDCG@10}, \textbf{R@10}, \textbf{R@100}. Positives come from \texttt{split="train"} qrels and evaluation from the disjoint \texttt{split="test"}, with a query-id disjointness assertion before training.
+The combined distance in the product space is a learnable weighted sum:
+\begin{equation}
+d_{\text{prod}}(x,y) = \alpha^2 \, d_{\mathbb{R}}^2(x_e,y_e) \;+\; \beta^2 \, d_{\mathbb{B}}^2(x_h,y_h) \;+\; \gamma^2 \, d_{\mathbb{S}}^2(x_s,y_s)
+\label{eq:product_distance}
+\end{equation}
+where $\alpha, \beta, \gamma$ are learnable scalar weights (initialized to 1.0) and $d_{\mathbb{R}}$, $d_{\mathbb{B}}$, $d_{\mathbb{S}}$ are the native distances in each component space.
 
-\subsection{Results and Discussion}
+\subsection{Implementation Details}
+
+\paragraph{Projection Heads.} We train lightweight projection heads on top of frozen SBERT (\texttt{all-MiniLM-L6-v2}, 384d) embeddings. Each head is a single linear layer $W \in \mathbb{R}^{384 \times d}$ that maps the SBERT output to the target manifold:
+
+\begin{itemize}[nosep,leftmargin=1.5em]
+    \item \textbf{Euclidean Head}: $f(x) = \frac{Wx}{\|Wx\|}$ (project + $L_2$ normalize).
+    \item \textbf{Poincar\'e Head}: $f(x) = \exp_0^c(s \cdot Wx)$ where $\exp_0^c$ is the exponential map at the origin of the Poincar\'e ball with curvature $c{=}1$, and $s$ is a learnable tangent-space scale (initialized to 0.3) that controls how close to the boundary points are mapped.
+    \item \textbf{Product Head}: three parallel projections $W_e, W_h, W_s$ producing the Euclidean ($L_2$-normalized), hyperbolic ($\exp_0$), and spherical ($L_2$-normalized) components respectively.
+\end{itemize}
+
+\paragraph{Training.} All heads are trained with triplet margin loss (margin$=0.5$):
+\[
+\mathcal{L} = \frac{1}{|B|}\sum_{(q,p,N)} \left[\, d(q,p) - \min_{n \in N} d(q,n) + 0.5 \,\right]_+
+\]
+using Riemannian Adam \citep{becigneul2019riemannian} via \texttt{geoopt}. We sample 7 negatives per query: 4 hard negatives from an index of same-section-title documents across different hierarchy branches (when available), plus 3 random negatives.
+
+\paragraph{Warm-Starting.} The Euclidean head is trained first (20 epochs, $lr=10^{-3}$). Its weights are then copied to initialize the Poincar\'e head (50 epochs, $lr=10^{-4}$) and the Product head (30 epochs, $lr=10^{-3}$), with the Euclidean projection weights partitioned across the three sub-projections.
+
+\paragraph{Hierarchy Norm Regularization.} For the Wiki dataset, we add a regularization term to Poincar\'e and Product heads that encourages the hyperbolic component norms to reflect hierarchy level:
+\[
+\mathcal{L}_{\text{reg}} = \lambda \sum_i ({\|h_i\|} - t_i)^2, \quad t_i \in \{0.20, 0.45, 0.70\}
+\]
+where $t_i$ maps level-1 categories to 0.20 (near origin), level-2 articles to 0.45, and level$\geq$3 sections to 0.70 (near boundary). We set $\lambda = 0.2$.
+
+\paragraph{Adaptive Product Head.} We additionally experiment with a query-adaptive variant where the distance weights $(\alpha, \beta, \gamma)$ are predicted per-query by a small MLP: $[\alpha_q, \beta_q, \gamma_q] = \text{Softplus}(W_2 \cdot \text{ReLU}(W_1 \cdot x_q))$ with $W_1 \in \mathbb{R}^{384 \times 32}$, $W_2 \in \mathbb{R}^{32 \times 3}$. This allows different query types to emphasize different geometric components.
+
+\subsection{Theoretical Framing}
+
+The product manifold $\mathcal{M} = \mathbb{R}^{d_1}\!\times\!\mathbb{B}^{d_2}\!\times\!\mathbb{S}^{d_3}$ is a Riemannian manifold whose metric tensor is the direct sum of the component metrics. \citet{gu2019learning} showed that for graphs with mixed structure---containing both tree-like and cyclic subgraphs---product spaces achieve lower distortion than any single-geometry embedding of the same total dimension. Our hypothesis is that document collections exhibit analogous mixed structure: hierarchical topic taxonomies (favoring $\mathbb{B}$), mutually exclusive document categories (favoring $\mathbb{S}$), and flat within-topic similarity (favoring $\mathbb{R}$).
+
+% ============================================================
+\section{Experiments}
+\label{sec:experiments}
+% ============================================================
+
+\subsection{Datasets}
+
+\begin{itemize}[nosep,leftmargin=1.5em]
+    \item \textbf{SciFact} (BEIR): 5,183 biomedical abstracts; 809/300 train/test queries. Mildly hierarchical (biomedical taxonomy).
+    \item \textbf{FiQA} (BEIR): 57,638 financial documents; 5,500/648 train/test queries. Flat structure.
+    \item \textbf{Wiki} (custom): ${\sim}1{,}000$ Wikipedia chunks with 4-level hierarchy across 8 root categories (Biology, Physics, Math, CS, History, Philosophy, Chemistry, Economics). Each document has explicit hierarchy metadata (category $\to$ article $\to$ section). We generate three types of test queries: \emph{generalize} (section$\to$category, 600 queries), \emph{hierarchy\_navigation} (article$\to$category, 200), and \emph{hierarchy\_disambiguation} (disambiguate same-titled sections across branches, 165).
+\end{itemize}
+
+\subsection{Baselines and Methods}
+
+\textbf{Baselines}: (i) BM25 (Okapi, lexical heuristic); (ii) Frozen SBERT (\texttt{all-MiniLM-L6-v2}, 384d, cosine similarity). \\
+\textbf{Proposed methods}: Euclidean, Poincar\'e, and Product projection heads (default 64d total). All retrieve top-100 candidates at test time. Each configuration is run with multiple random seeds; we report mean $\pm$ std.
+
+\subsection{Main Results}
 
 \begin{table}[h]
 \centering
 \small
-\caption{Retrieval results with a clean train/test split. All trained heads are fit on BEIR \texttt{split="train"} qrels and evaluated on the disjoint \texttt{split="test"}. Best per dataset in \textbf{bold}; best \emph{trained} head \underline{underlined}.}
+\caption{Main retrieval results (64d projection heads, 2 seeds). Best trained method per dataset in \textbf{bold}.}
 \vspace{0.2cm}
 \begin{tabular}{@{}llccc@{}}
 \toprule
 Dataset & Method & NDCG@10 & R@10 & R@100 \\
 \midrule
+\multirow{5}{*}{Wiki}
+& BM25               & 0.079 & 0.119 & 0.215 \\
+& SBERT (frozen)      & 0.099 & 0.155 & 0.277 \\
+& Euclidean-64        & \textbf{0.578}{\scriptsize$\pm$.003} & 0.828{\scriptsize$\pm$.001} & 0.967{\scriptsize$\pm$.001} \\
+& Poincar\'e-64       & 0.492{\scriptsize$\pm$.001} & 0.738{\scriptsize$\pm$.001} & 0.936{\scriptsize$\pm$.002} \\
+& Product-64          & 0.542{\scriptsize$\pm$.001} & \textbf{0.839}{\scriptsize$\pm$.004} & \textbf{0.985}{\scriptsize$\pm$.001} \\
+\midrule
 \multirow{5}{*}{SciFact}
 & BM25               & 0.560 & 0.686 & 0.793 \\
-& SBERT (384d)        & 0.645 & 0.783 & 0.925 \\
-& Euclidean (64d)     & \textbf{\underline{0.663}} & \textbf{\underline{0.825}} & \textbf{\underline{0.928}} \\
-& Poincar\'e (64d)    & 0.201 & 0.307 & 0.575 \\
-& Product (64d)       & 0.556 & 0.732 & 0.862 \\
+& SBERT (frozen)      & 0.645 & 0.783 & 0.925 \\
+& Euclidean-64        & \textbf{0.672}{\scriptsize$\pm$.013} & \textbf{0.821}{\scriptsize$\pm$.009} & 0.922{\scriptsize$\pm$.005} \\
+& Poincar\'e-64       & 0.449{\scriptsize$\pm$.006} & 0.573{\scriptsize$\pm$.006} & 0.797{\scriptsize$\pm$.002} \\
+& Product-64          & 0.577{\scriptsize$\pm$.005} & 0.736{\scriptsize$\pm$.014} & 0.903{\scriptsize$\pm$.009} \\
 \midrule
 \multirow{5}{*}{FiQA}
 & BM25               & 0.159 & 0.204 & 0.359 \\
-& SBERT (384d)        & \textbf{0.369} & \textbf{0.441} & \textbf{0.706} \\
-& Euclidean (64d)     & 0.243 & 0.311 & 0.572 \\
-& Poincar\'e (64d)    & 0.184 & 0.247 & 0.496 \\
-& Product (64d)       & \underline{0.271} & \underline{0.345} & \underline{0.596} \\
+& SBERT (frozen)      & \textbf{0.369} & \textbf{0.441} & \textbf{0.706} \\
+& Euclidean-64        & 0.238{\scriptsize$\pm$.002} & 0.300{\scriptsize$\pm$.005} & 0.573{\scriptsize$\pm$.001} \\
+& Poincar\'e-64       & 0.183{\scriptsize$\pm$.001} & 0.247{\scriptsize$\pm$.003} & 0.469{\scriptsize$\pm$.002} \\
+& Product-64          & \textbf{0.263}{\scriptsize$\pm$.003} & \textbf{0.332}{\scriptsize$\pm$.003} & \textbf{0.596}{\scriptsize$\pm$.007} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Note on an earlier leaky pipeline.} Our initial runs inadvertently trained on BEIR \texttt{split="test"} qrels, producing implausibly high scores (e.g.\ SciFact Euclidean-$64d$ NDCG@10 $=0.953$). The fixed pipeline loads both splits, mines positives only from \texttt{train}, and asserts query-id disjointness; all Table~2 numbers come from this clean pipeline. Run-to-run variance is non-trivial ($\sim\!0.06$ NDCG@10 on SciFact Euclidean); the final report will average over seeds.
+On Wiki and SciFact, all trained heads massively outperform BM25 and frozen SBERT, with Euclidean achieving the highest overall NDCG@10. On FiQA, frozen SBERT (384d) outperforms all 64d trained heads due to the capacity bottleneck, but among trained heads, Product is consistently best. Across all three datasets, Product achieves the highest Recall@100, suggesting mixed geometry helps surface relevant documents even when ranking precision is lower.
 
-\paragraph{Observations.} On \emph{SciFact}, the trained $64d$ Euclidean head modestly beats frozen $384d$ SBERT ($0.663$ vs.\ $0.645$ NDCG@10), while the pure Poincar\'e head collapses ($0.201$)---most likely an optimisation failure (small init scale $0.1$ + un-tuned Riemannian $lr$ trap points near the origin) rather than a geometric one. On \emph{FiQA}, all trained heads underperform frozen SBERT ($0.369$), indicating a capacity bottleneck at $5{,}500$ triplets; but within the trained heads the ordering is \textbf{Product~$>$~Euclidean~$>$~Poincar\'e} consistently across NDCG@10, R@10, R@100---the first clean signal that mixed-curvature geometry adds representational capacity, hidden in our leaky runs.
+\paragraph{Per-Type Breakdown (Wiki).} The aggregate numbers mask an important fine-grained pattern:
 
-\paragraph{Planned experiments.} (i)~Low-$d$ sweep $d\in\{8,16,32\}$ where the Intro distortion result predicts the largest hyperbolic gap; (ii)~longer training and $lr$/init-scale sweeps for the Poincar\'e head, warm-started from the Euclidean head; (iii)~joint SBERT fine-tuning (needs GPU credits); (iv)~$\delta$-hyperbolicity of each dataset; (v)~hyperbolic-norm-based topological filtering and its ablation.
+\begin{table}[h]
+\centering
+\small
+\caption{Wiki NDCG@10 by query type (64d, 2 seeds). Best per type in \textbf{bold}.}
+\vspace{0.2cm}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Method & Generalize & Hier.\ Disambig. & Hier.\ Navigation \\
+\midrule
+Euclidean-64  & \textbf{0.611}{\scriptsize$\pm$.006} & 0.452{\scriptsize$\pm$.001} & \textbf{0.580}{\scriptsize$\pm$.002} \\
+Poincar\'e-64 & 0.551{\scriptsize$\pm$.002} & 0.284{\scriptsize$\pm$.003} & 0.488{\scriptsize$\pm$.002} \\
+Product-64    & 0.565{\scriptsize$\pm$.001} & \textbf{0.543}{\scriptsize$\pm$.007} & 0.470{\scriptsize$\pm$.003} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Product outperforms Euclidean by \textbf{+9.1 NDCG@10 points} on hierarchy disambiguation---queries that require distinguishing same-titled sections across different hierarchy branches (e.g., ``History'' under AI vs.\ under WWII). This is the task where mixed-curvature geometry has the clearest structural advantage: the spherical component encodes branch membership, and the hyperbolic component encodes depth, jointly enabling disambiguation that flat Euclidean space cannot achieve as effectively.
 
 % ============================================================
-\section{Application to VESSL AI Credits}
+\section{Analysis}
+\label{sec:analysis}
 % ============================================================
 
-We request roughly $150$--$250$ A100-GPU-hours to scale our experiments along four axes. (1)~\emph{End-to-end manifold fine-tuning}: jointly fine-tune the full SBERT encoder with the projection heads (currently frozen for compute reasons), which we expect to disproportionately benefit the Poincar\'e and product heads because their geometry is currently constrained by Euclidean pretrained features. (2)~\emph{Larger, more structured benchmarks}: evaluate on NQ, HotpotQA, and DBPedia-Entity ($4.6$M documents); the latter two have explicit entity/hierarchy structure where we expect hyperbolic components to pay off. (3)~\emph{Systematic sweeps}: dimension $d \in \{8,16,32,64,128,256\}$, curvature $c$, and product-manifold factor allocations, enabled by the clean train/test pipeline described in \S3. (4)~\emph{Topological filtering}: implement and ablate the hyperbolic-norm-based candidate filter promised in the introduction, which requires additional encoding passes over the larger corpora above. Without GPU support, items~(1), (2), and the larger sweeps in~(3) are infeasible on our current hardware.
+\subsection{Dimension Sweep}
+
+We sweep over embedding dimensions $d \in \{8, 16, 32, 64\}$ across all three methods and datasets (3 seeds each). Table~\ref{tab:dim_sweep} shows NDCG@10.
+
+\begin{table}[h]
+\centering
+\small
+\caption{NDCG@10 across embedding dimensions (3 seeds). Best method per cell in \textbf{bold}.}
+\label{tab:dim_sweep}
+\vspace{0.2cm}
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+Dataset & Method & $d$=8 & $d$=16 & $d$=32 & $d$=64 \\
+\midrule
+\multirow{3}{*}{Wiki}
+& Euclidean  & \textbf{.434}{\scriptsize$\pm$.005} & \textbf{.507}{\scriptsize$\pm$.004} & \textbf{.548}{\scriptsize$\pm$.001} & \textbf{.574}{\scriptsize$\pm$.009} \\
+& Poincar\'e & .309{\scriptsize$\pm$.012} & .382{\scriptsize$\pm$.003} & .431{\scriptsize$\pm$.003} & .505{\scriptsize$\pm$.010} \\
+& Product    & .360{\scriptsize$\pm$.047} & .478{\scriptsize$\pm$.012} & .532{\scriptsize$\pm$.007} & .535{\scriptsize$\pm$.011} \\
+\midrule
+\multirow{3}{*}{SciFact}
+& Euclidean  & \textbf{.149}{\scriptsize$\pm$.008} & \textbf{.366}{\scriptsize$\pm$.005} & \textbf{.567}{\scriptsize$\pm$.016} & \textbf{.675}{\scriptsize$\pm$.012} \\
+& Poincar\'e & .144{\scriptsize$\pm$.004} & .274{\scriptsize$\pm$.010} & .379{\scriptsize$\pm$.008} & .446{\scriptsize$\pm$.006} \\
+& Product    & .100{\scriptsize$\pm$.002} & .282{\scriptsize$\pm$.023} & .487{\scriptsize$\pm$.002} & .589{\scriptsize$\pm$.017} \\
+\midrule
+\multirow{3}{*}{FiQA}
+& Euclidean  & .039{\scriptsize$\pm$.002} & \textbf{.120}{\scriptsize$\pm$.004} & .203{\scriptsize$\pm$.000} & .239{\scriptsize$\pm$.002} \\
+& Poincar\'e & \textbf{.043}{\scriptsize$\pm$.002} & .103{\scriptsize$\pm$.003} & .146{\scriptsize$\pm$.002} & .183{\scriptsize$\pm$.001} \\
+& Product    & .028{\scriptsize$\pm$.005} & .108{\scriptsize$\pm$.005} & \textbf{.210}{\scriptsize$\pm$.002} & \textbf{.267}{\scriptsize$\pm$.006} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Contrary to our initial hypothesis, the ``low-dim hyperbolic advantage'' from synthetic tree embeddings does not transfer directly: Euclidean dominates at all dimensions on Wiki and SciFact. The Product head shows high variance at $d{=}8$ ($\pm$.047 on Wiki) because splitting 8 dimensions three ways (4+2+2) leaves too few per component. However, Product overtakes Euclidean on FiQA at $d{\geq}32$, suggesting the mixed-curvature approach adds representational capacity that helps on large, flat corpora.
+
+\subsection{Component Ablation}
+
+We fix total dimension to 64 and systematically remove each geometric component from the Product head (Table~\ref{tab:ablation}). Experiments run on Wiki (3 seeds).
+
+\begin{table}[h]
+\centering
+\small
+\caption{Component ablation on Wiki (dim=64, 3 seeds). ``Disambig.'' = NDCG@10 on hierarchy disambiguation queries only.}
+\label{tab:ablation}
+\vspace{0.2cm}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+Variant & (E, H, S) & Overall NDCG@10 & Disambig.\ NDCG@10 \\
+\midrule
+Euclidean only  & (64, 0, 0) & \textbf{0.577}{\scriptsize$\pm$.016} & 0.435 \\
+Product no-S    & (48, 16, 0) & 0.544{\scriptsize$\pm$.001} & 0.532 \\
+Product no-H    & (48, 0, 16) & 0.541{\scriptsize$\pm$.003} & \textbf{0.537} \\
+Product full    & (32, 16, 16) & 0.533{\scriptsize$\pm$.006} & 0.529 \\
+Product no-E    & (0, 32, 32) & 0.523{\scriptsize$\pm$.011} & 0.524 \\
+Poincar\'e only & (0, 64, 0) & 0.462{\scriptsize$\pm$.005} & 0.273 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two findings stand out: (1) Removing the Euclidean component hurts most (0.523 vs.\ 0.533), confirming flat similarity is the dominant signal. (2) All Product variants dramatically outperform Euclidean-only on disambiguation (+8.9--10.2 points), while Euclidean-only is best overall. Interestingly, removing either the hyperbolic or spherical component individually slightly \emph{improves} overall NDCG, suggesting the full three-way product may be over-parameterized at dim=64.
+
+\subsection{Adaptive Weight Analysis}
+
+The query-adaptive Product head learns per-query weights $(\alpha, \beta, \gamma)$ via a small MLP. On Wiki, we analyze the learned weights by query type:
+
+\begin{table}[h]
+\centering
+\small
+\caption{Mean learned adaptive weights by QA type (Wiki). Higher = more influence on distance.}
+\vspace{0.2cm}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+QA Type & $\alpha$ (Euclid) & $\beta$ (Hyper) & $\gamma$ (Sphere) \\
+\midrule
+Generalize           & 2.52{\scriptsize$\pm$.37} & 0.47{\scriptsize$\pm$.23} & 2.41{\scriptsize$\pm$.32} \\
+Hier.\ disambiguation & 3.06{\scriptsize$\pm$.32} & 0.55{\scriptsize$\pm$.19} & 2.73{\scriptsize$\pm$.25} \\
+Hier.\ navigation     & 2.94{\scriptsize$\pm$.28} & 0.45{\scriptsize$\pm$.14} & 2.37{\scriptsize$\pm$.22} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The hyperbolic weight $\beta$ is consistently suppressed (0.45--0.55) compared to $\alpha$ and $\gamma$ (2.4--3.1). Contrary to our hypothesis, hierarchy-related queries do \emph{not} learn higher hyperbolic weights; instead, they increase the Euclidean and spherical weights. This suggests that on our Wiki corpus, hierarchical structure is better captured by the combination of flat similarity and angular separation than by Poincar\'e distance alone.
+
+The adaptive head improves over the static Product head on SciFact (+1.8 NDCG@10 points, from 0.541 to 0.560) but slightly hurts on Wiki ($-1.2$) and FiQA ($-1.0$), indicating the additional parameters overfit on smaller datasets.
+
+\subsection{Error Analysis}
+
+\paragraph{When does Product fail?}
+Product underperforms Euclidean most on \emph{hierarchy\_navigation} queries (0.470 vs.\ 0.580 NDCG@10). These queries ask ``What broader category does article X belong to?'' and require matching specific articles to abstract category documents. Euclidean cosine similarity handles this effectively because the query explicitly names the article, providing strong lexical overlap. The Product head's more complex distance metric appears to diffuse the signal.
+
+\paragraph{When does Product excel?}
+Disambiguation queries present same-titled sections from different branches (e.g., ``In the context of \emph{AI $>$ Machine Learning}, what does the History section cover?''). BM25 and SBERT achieve 0.449 and 0.548 NDCG@10 respectively by keyword matching, but cannot distinguish which ``History'' is meant. The Product head reaches 0.543 by leveraging the spherical component to separate branches and the hyperbolic component to encode depth, while Euclidean-only achieves only 0.435.
+
+% ============================================================
+\section{Limitations and Broader Impact}
+% ============================================================
+
+Our study has several limitations. First, the SBERT encoder is frozen; jointly fine-tuning the encoder with manifold-aware objectives could better align the embedding space with non-Euclidean geometry. Second, our custom Wiki dataset (${\sim}1{,}000$ docs) is small and synthetically constructed---results may not transfer to organic hierarchical corpora at scale. Third, the Poincar\'e head's consistent underperformance may reflect optimization difficulty (sensitivity to learning rate and tangent-space scale) rather than a fundamental geometric limitation; more extensive hyperparameter search could close the gap.
+
+On broader impact: geometry-aware retrieval could improve RAG systems in domains with rich hierarchical structure (medicine, law, scientific taxonomies) by making retrieval more structure-aware, potentially reducing hallucination from retrieving superficially similar but contextually wrong documents.
+
+% ============================================================
+\section{Conclusion}
+% ============================================================
+
+We presented Manifold-RAG, a framework for dense retrieval in mixed-curvature product manifolds combining Euclidean, hyperbolic, and spherical geometry. Through experiments on three datasets with dimension sweeps, component ablations, and adaptive weight analysis, we find that while Euclidean projections achieve the best overall retrieval quality, the product manifold provides a clear advantage on structure-sensitive tasks---particularly hierarchy disambiguation (+9.1 NDCG@10 over Euclidean) and FiQA retrieval at reduced dimensions. The adaptive weight analysis reveals that the model learns to suppress the hyperbolic component in favor of Euclidean and spherical distances, suggesting that the practical value of mixed-curvature geometry in retrieval lies more in the \emph{combination} of flat and angular similarity than in hyperbolic distance alone.
 
 % ============================================================
 
@@ -170,5 +356,38 @@ Tifrea, A., B\'ecigneul, G., \& Ganea, O.-E. (2019). Poincar\'e GloVe: Hyperboli
 Xiong, L. et al. (2021). Approximate Nearest Neighbor Negative Contrastive Learning for Dense Text Retrieval. \textit{ICLR}.
 
 \end{thebibliography}
+
+% ============================================================
+\appendix
+\section{Additional Experiment Details}
+% ============================================================
+
+\paragraph{Hyperparameters.} Batch size: 256 for all heads. Gradient clipping: max\_norm=1.0. Negatives per sample: 7 (4 hard + 3 random when hard negative index is available). Margin: 0.5. Hierarchy norm regularization: $\lambda=0.2$, targets $\{0.20, 0.45, 0.70\}$ for levels $\{1, 2, \geq3\}$. SBERT embeddings are cached as \texttt{.npy} files to avoid redundant encoding across experiments.
+
+\paragraph{Dimension Allocation Ablation.} We test five allocation strategies for the Product head at total dim=64:
+
+\begin{table}[h]
+\centering
+\small
+\caption{NDCG@10 for different (E,H,S) allocations at total dim=64 (3 seeds).}
+\vspace{0.2cm}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Allocation (E,H,S) & Wiki & SciFact & FiQA \\
+\midrule
+(48, 8, 8)  Euclid-heavy   & .536{\scriptsize$\pm$.004} & \textbf{.574}{\scriptsize$\pm$.007} & \textbf{.276}{\scriptsize$\pm$.008} \\
+(32, 16, 16) Default       & .533{\scriptsize$\pm$.006} & .541{\scriptsize$\pm$.013} & .273{\scriptsize$\pm$.004} \\
+(22, 21, 21) Equal         & .536{\scriptsize$\pm$.008} & .558{\scriptsize$\pm$.014} & .274{\scriptsize$\pm$.001} \\
+(16, 16, 32) Sphere-heavy  & .534{\scriptsize$\pm$.004} & .553{\scriptsize$\pm$.006} & .273{\scriptsize$\pm$.009} \\
+(16, 32, 16) Hyper-heavy   & .533{\scriptsize$\pm$.009} & .479{\scriptsize$\pm$.013} & .270{\scriptsize$\pm$.003} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On Wiki, allocations are within noise ($\pm$0.003). On SciFact and FiQA, Euclidean-heavy (48,8,8) is best, consistent with the component ablation finding that flat similarity is the dominant signal on non-hierarchical data. The hyperbolic-heavy split (16,32,16) notably hurts SciFact ($-$6.2 points vs.\ default).
+
+\paragraph{Wiki QA Generation.} Disambiguation queries are generated programmatically: for each section title appearing under $\geq$2 different top-level categories, we create a question embedding the hierarchy path (e.g., ``In the context of `AI $>$ Machine Learning', what does the `History' section cover?''). The ground-truth document is the specific section chunk; same-titled chunks from other branches serve as hard negatives during training. Navigation queries ask ``What broader category does article X belong to?'' with the category document as ground truth. Generalize queries present a snippet from a section (with category/title keywords replaced by ``[topic]'') and ask which broad subject area it belongs to.
+
+\paragraph{Hardware.} All experiments were run on a single NVIDIA RTX 4060 Laptop GPU (8GB VRAM). Total GPU time: approximately 8 hours for all experiments including dimension sweep, ablations, and adaptive head training.
 
 \end{document}

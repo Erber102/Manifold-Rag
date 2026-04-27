@@ -1,0 +1,17 @@
+\begin{table}[t]
+\caption{NDCG@10 for different (E,H,S) dimension allocations (total=64). Best per dataset in \textbf{bold}.}
+\label{tab:ablation_allocation}
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+Allocation & (E,H,S) & WIKI & SCIFACT & FIQA \\
+\midrule
+Default & (32,16,16) & 0.533 {\scriptsize$\pm$0.006} & 0.541 {\scriptsize$\pm$0.013} & 0.273 {\scriptsize$\pm$0.004} \\
+Hyper-heavy & (16,32,16) & 0.533 {\scriptsize$\pm$0.009} & 0.479 {\scriptsize$\pm$0.013} & 0.270 {\scriptsize$\pm$0.003} \\
+Sphere-heavy & (16,16,32) & 0.534 {\scriptsize$\pm$0.004} & 0.553 {\scriptsize$\pm$0.006} & 0.273 {\scriptsize$\pm$0.009} \\
+Euclid-heavy & (48,8,8) & \textbf{0.536 {\scriptsize$\pm$0.004}} & \textbf{0.574 {\scriptsize$\pm$0.007}} & \textbf{0.276 {\scriptsize$\pm$0.007}} \\
+Equal & (22,21,21) & 0.536 {\scriptsize$\pm$0.008} & 0.558 {\scriptsize$\pm$0.014} & 0.273 {\scriptsize$\pm$0.001} \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,18 @@
+\begin{table}[t]
+\caption{Main retrieval results across datasets. Best trained method in \textbf{bold}.}
+\label{tab:main_results}
+\centering
+\small
+\begin{tabular}{lccccccccc}
+\toprule
+Method & \multicolumn{3}{c}{WIKI} & \multicolumn{3}{c}{SCIFACT} & \multicolumn{3}{c}{FIQA} \\
+ & NDCG@10 & R@10 & R@100 & NDCG@10 & R@10 & R@100 & NDCG@10 & R@10 & R@100 \\
+\midrule
+BM25 & 0.079 & 0.119 & 0.215 & 0.560 & 0.686 & 0.793 & 0.159 & 0.204 & 0.359 \\
+SBERT (frozen) & 0.099 & 0.155 & 0.277 & 0.645 & 0.783 & 0.925 & 0.369 & 0.441 & 0.706 \\
+Euclidean-64 & \textbf{0.578 {\scriptsize$\pm$0.003}} & 0.828 {\scriptsize$\pm$0.001} & 0.967 {\scriptsize$\pm$0.001} & \textbf{0.672 {\scriptsize$\pm$0.013}} & 0.821 {\scriptsize$\pm$0.009} & 0.922 {\scriptsize$\pm$0.005} & 0.238 {\scriptsize$\pm$0.002} & 0.300 {\scriptsize$\pm$0.005} & 0.573 {\scriptsize$\pm$0.001} \\
+Poincar\'e-64 & 0.492 {\scriptsize$\pm$0.001} & 0.738 {\scriptsize$\pm$0.001} & 0.936 {\scriptsize$\pm$0.002} & 0.449 {\scriptsize$\pm$0.006} & 0.573 {\scriptsize$\pm$0.006} & 0.797 {\scriptsize$\pm$0.002} & 0.183 {\scriptsize$\pm$0.001} & 0.247 {\scriptsize$\pm$0.003} & 0.469 {\scriptsize$\pm$0.002} \\
+Product-64 & 0.542 {\scriptsize$\pm$0.001} & 0.839 {\scriptsize$\pm$0.004} & 0.985 {\scriptsize$\pm$0.001} & 0.577 {\scriptsize$\pm$0.005} & 0.736 {\scriptsize$\pm$0.014} & 0.903 {\scriptsize$\pm$0.009} & \textbf{0.263 {\scriptsize$\pm$0.003}} & 0.332 {\scriptsize$\pm$0.003} & 0.596 {\scriptsize$\pm$0.007} \\
+\bottomrule
+\end{tabular}
+\end{table}

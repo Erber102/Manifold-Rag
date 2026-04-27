@@ -1,0 +1,20 @@
+\begin{table}[t]
+\caption{Static vs adaptive Product head (dim=64). Best in \textbf{bold}.}
+\label{tab:adaptive}
+\centering
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Method & \multicolumn{2}{c}{WIKI} & \multicolumn{2}{c}{SCIFACT} & \multicolumn{2}{c}{FIQA} \\
+ & NDCG@10 & R@10 & NDCG@10 & R@10 & NDCG@10 & R@10 \\
+\midrule
+Product (static) & \textbf{0.533 {\scriptsize$\pm$0.006}} & 0.840 {\scriptsize$\pm$0.005} & 0.541 {\scriptsize$\pm$0.013} & 0.720 {\scriptsize$\pm$0.016} & \textbf{0.273 {\scriptsize$\pm$0.004}} & 0.334 {\scriptsize$\pm$0.007} \\
+Product (adaptive) & 0.522 {\scriptsize$\pm$0.014} & 0.823 {\scriptsize$\pm$0.015} & \textbf{0.559 {\scriptsize$\pm$0.011}} & 0.741 {\scriptsize$\pm$0.020} & 0.263 {\scriptsize$\pm$0.004} & 0.325 {\scriptsize$\pm$0.005} \\
+\midrule
+\multicolumn{7}{l}{\textit{Wiki per-type NDCG@10:}} \\
+\quad generalize & 0.564 {\scriptsize$\pm$0.009} & 0.550 {\scriptsize$\pm$0.011} &  &  &  &  \\
+\quad hierarchy_disambiguation & 0.529 {\scriptsize$\pm$0.009} & 0.512 {\scriptsize$\pm$0.005} &  &  &  &  \\
+\quad hierarchy_navigation & 0.446 {\scriptsize$\pm$0.008} & 0.445 {\scriptsize$\pm$0.034} &  &  &  &  \\
+\bottomrule
+\end{tabular}
+\end{table}

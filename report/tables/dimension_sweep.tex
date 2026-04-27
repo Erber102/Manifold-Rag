@@ -1,0 +1,23 @@
+\begin{table}[t]
+\caption{NDCG@10 across embedding dimensions. Best method per column in \textbf{bold}.}
+\label{tab:dimension_sweep}
+\centering
+\small
+\begin{tabular}{llcccc}
+\toprule
+Dataset & Method & $d=8$ & $d=16$ & $d=32$ & $d=64$ \\
+\midrule
+\multirow{3}{*}{WIKI} & Euclidean & \textbf{0.434 {\scriptsize$\pm$0.005}} & \textbf{0.507 {\scriptsize$\pm$0.004}} & \textbf{0.548 {\scriptsize$\pm$0.001}} & \textbf{0.574 {\scriptsize$\pm$0.009}} \\
+ & Poincar\'e & 0.309 {\scriptsize$\pm$0.012} & 0.382 {\scriptsize$\pm$0.003} & 0.431 {\scriptsize$\pm$0.003} & 0.505 {\scriptsize$\pm$0.010} \\
+ & Product & 0.360 {\scriptsize$\pm$0.047} & 0.478 {\scriptsize$\pm$0.012} & 0.532 {\scriptsize$\pm$0.007} & 0.535 {\scriptsize$\pm$0.011} \\
+\midrule
+\multirow{3}{*}{SCIFACT} & Euclidean & \textbf{0.149 {\scriptsize$\pm$0.008}} & \textbf{0.366 {\scriptsize$\pm$0.005}} & \textbf{0.567 {\scriptsize$\pm$0.016}} & \textbf{0.675 {\scriptsize$\pm$0.012}} \\
+ & Poincar\'e & 0.144 {\scriptsize$\pm$0.004} & 0.274 {\scriptsize$\pm$0.010} & 0.379 {\scriptsize$\pm$0.008} & 0.446 {\scriptsize$\pm$0.006} \\
+ & Product & 0.100 {\scriptsize$\pm$0.002} & 0.282 {\scriptsize$\pm$0.023} & 0.487 {\scriptsize$\pm$0.002} & 0.589 {\scriptsize$\pm$0.017} \\
+\midrule
+\multirow{3}{*}{FIQA} & Euclidean & 0.039 {\scriptsize$\pm$0.002} & \textbf{0.120 {\scriptsize$\pm$0.004}} & 0.203 {\scriptsize$\pm$0.000} & 0.239 {\scriptsize$\pm$0.002} \\
+ & Poincar\'e & \textbf{0.043 {\scriptsize$\pm$0.002}} & 0.103 {\scriptsize$\pm$0.003} & 0.146 {\scriptsize$\pm$0.002} & 0.183 {\scriptsize$\pm$0.001} \\
+ & Product & 0.028 {\scriptsize$\pm$0.005} & 0.108 {\scriptsize$\pm$0.005} & \textbf{0.210 {\scriptsize$\pm$0.002}} & \textbf{0.267 {\scriptsize$\pm$0.006}} \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,18 @@
+\begin{table}[t]
+\caption{Component ablation on Wiki dataset (dim=64). Best in \textbf{bold}.}
+\label{tab:ablation_components}
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+Variant & NDCG@10 & R@10 & R@100 & MAP@10 \\
+\midrule
+Full (E32, H16, S16) & 0.533 {\scriptsize$\pm$0.006} & 0.840 {\scriptsize$\pm$0.005} & 0.986 {\scriptsize$\pm$0.001} & 0.436 {\scriptsize$\pm$0.007} \\
+No Hyperbolic (E48, S16) & 0.541 {\scriptsize$\pm$0.003} & 0.839 {\scriptsize$\pm$0.004} & 0.984 {\scriptsize$\pm$0.003} & 0.446 {\scriptsize$\pm$0.002} \\
+No Spherical (E48, H16) & 0.544 {\scriptsize$\pm$0.001} & 0.837 {\scriptsize$\pm$0.005} & 0.985 {\scriptsize$\pm$0.004} & 0.451 {\scriptsize$\pm$0.001} \\
+No Euclidean (H32, S32) & 0.523 {\scriptsize$\pm$0.011} & 0.835 {\scriptsize$\pm$0.011} & 0.984 {\scriptsize$\pm$0.002} & 0.424 {\scriptsize$\pm$0.011} \\
+Euclidean Only (64) & \textbf{0.577 {\scriptsize$\pm$0.016}} & 0.822 {\scriptsize$\pm$0.006} & 0.968 {\scriptsize$\pm$0.000} & 0.498 {\scriptsize$\pm$0.020} \\
+Poincar\'e Only (64) & 0.462 {\scriptsize$\pm$0.005} & 0.696 {\scriptsize$\pm$0.002} & 0.915 {\scriptsize$\pm$0.004} & 0.387 {\scriptsize$\pm$0.007} \\
+\bottomrule
+\end{tabular}
+\end{table}
